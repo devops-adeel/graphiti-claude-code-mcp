@@ -49,6 +49,74 @@ A temporal knowledge graph memory layer for Claude Code that captures coding pat
 - FalkorDB running on port 6380 (via your existing setup)
 - OpenAI API key
 
+## Docker Installation (Recommended for Claude Code)
+
+### Quick Start
+
+1. **Build the Docker image:**
+   ```bash
+   ./scripts/build-docker.sh
+   ```
+
+2. **Test the setup:**
+   ```bash
+   ./scripts/test-docker.sh
+   ```
+
+3. **Configure Claude Code:**
+   Add to `~/Library/Application Support/Claude/claude_desktop_config.json`:
+   ```json
+   {
+     "mcpServers": {
+       "graphiti-memory": {
+         "command": "docker",
+         "args": [
+           "run", "-i", "--rm",
+           "-v", "/Users/adeel/.env:/app/.env:ro",
+           "-v", "/Users/adeel/Documents/1_projects/graphiti-claude-code-mcp/.env.graphiti:/app/.env.graphiti:ro",
+           "--add-host", "host.docker.internal:host-gateway",
+           "graphiti-mcp-server:latest"
+         ]
+       }
+     }
+   }
+   ```
+
+4. **Restart Claude Code** and verify connection
+
+### Docker Setup Details
+
+The Docker installation provides:
+- **Isolated environment** - No Python version conflicts
+- **Automatic stdio transport** - Proper MCP protocol handling
+- **Host networking** - Connects to FalkorDB on host machine
+- **Secure secrets** - Mounts environment files as read-only
+
+### Environment Configuration
+
+The Docker container expects:
+- `~/.env` - Contains your OPENAI_API_KEY
+- `.env.graphiti` - Contains Graphiti/FalkorDB configuration
+
+The wrapper automatically handles Docker networking by converting `localhost` to `host.docker.internal` when running in Docker.
+
+### Troubleshooting Docker
+
+If Claude Code can't connect:
+1. Ensure Docker is running: `docker ps`
+2. Check FalkorDB is accessible: `nc -z localhost 6380`
+3. Verify image exists: `docker images | grep graphiti-mcp-server`
+4. Check logs: Remove `--rm` from args and run `docker logs <container-id>`
+
+For manual testing:
+```bash
+docker run -i --rm \
+  -v ~/.env:/app/.env:ro \
+  -v $(pwd)/.env.graphiti:/app/.env.graphiti:ro \
+  --add-host host.docker.internal:host-gateway \
+  graphiti-mcp-server:latest
+```
+
 ## Quick Start
 
 ### 1. Clone the Repository

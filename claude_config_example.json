@@ -1,0 +1,61 @@
+{
+  "mcpServers": {
+    "graphiti-memory": {
+      "command": "docker",
+      "args": [
+        "run",
+        "-i",
+        "--rm",
+        "-v",
+        "/Users/adeel/.env:/app/.env:ro",
+        "-v",
+        "/Users/adeel/Documents/1_projects/graphiti-claude-code-mcp/.env.graphiti:/app/.env.graphiti:ro",
+        "--add-host",
+        "host.docker.internal:host-gateway",
+        "graphiti-mcp-server:latest"
+      ]
+    }
+  }
+}
+
+// INSTALLATION INSTRUCTIONS:
+// =========================
+// 
+// 1. Build the Docker image first:
+//    cd /Users/adeel/Documents/1_projects/graphiti-claude-code-mcp
+//    ./scripts/build-docker.sh
+//
+// 2. Test the Docker setup:
+//    ./scripts/test-docker.sh
+//
+// 3. Add this configuration to Claude Code:
+//    - Open: ~/Library/Application Support/Claude/claude_desktop_config.json
+//    - Add the "graphiti-memory" section to your existing "mcpServers" object
+//    - If the file doesn't exist, create it with this content
+//
+// 4. Ensure FalkorDB is running:
+//    docker run -d -p 6380:6379 --name falkordb falkordb/falkordb
+//
+// 5. Restart Claude Code application
+//
+// 6. Verify connection:
+//    - Open Claude Code
+//    - Type: "Can you check your MCP server connections?"
+//    - You should see "graphiti-memory" in the list
+//
+// DOCKER COMMAND EXPLANATION:
+// ---------------------------
+// docker run           - Run a new container
+// -i                   - Interactive mode (required for stdio)
+// --rm                 - Remove container after exit
+// -v ~/.env:/app/.env:ro - Mount your API keys (read-only)
+// -v .../env.graphiti  - Mount Graphiti config (read-only)
+// --add-host ...       - Allow container to access host's FalkorDB
+// graphiti-mcp-server  - The Docker image name
+//
+// TROUBLESHOOTING:
+// ---------------
+// - If Claude can't connect: Check Docker is running
+// - If FalkorDB errors: Ensure FalkorDB container is running
+// - If API key errors: Verify ~/.env contains OPENAI_API_KEY
+// - For logs: Remove --rm flag and check: docker logs <container-id>
