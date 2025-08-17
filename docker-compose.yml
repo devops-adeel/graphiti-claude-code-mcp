@@ -1,0 +1,83 @@
+version: '3.8'
+
+services:
+  # Graphiti Claude Code MCP Server
+  graphiti-mcp:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: graphiti-claude-code-mcp
+    environment:
+      # Shared configuration with GTD Coach
+      - GRAPHITI_GROUP_ID=${GRAPHITI_GROUP_ID:-shared_gtd_knowledge}
+      - FALKORDB_HOST=host.docker.internal
+      - FALKORDB_PORT=${FALKORDB_PORT:-6380}
+      - FALKORDB_DATABASE=${FALKORDB_DATABASE:-shared_knowledge_graph}
+      
+      # OpenAI Configuration
+      - OPENAI_API_KEY=${OPENAI_API_KEY}
+      - OPENAI_MODEL=${OPENAI_MODEL:-gpt-4o-mini}
+      - OPENAI_EMBEDDING_MODEL=${OPENAI_EMBEDDING_MODEL:-text-embedding-3-small}
+      
+      # Memory Configuration
+      - MEMORY_DECAY_FACTOR=${MEMORY_DECAY_FACTOR:-0.95}
+      - MEMORY_INCLUDE_HISTORICAL=${MEMORY_INCLUDE_HISTORICAL:-false}
+      - ENABLE_GTD_INTEGRATION=${ENABLE_GTD_INTEGRATION:-true}
+      - ENABLE_CROSS_REFERENCES=${ENABLE_CROSS_REFERENCES:-true}
+      
+      # MCP Server Configuration
+      - MCP_SERVER_NAME=graphiti-claude-code-mcp
+      - LOG_LEVEL=${LOG_LEVEL:-INFO}
+    
+    volumes:
+      # Mount local code for development
+      - .:/app
+      # Mount shared .env.graphiti
+      - ${HOME}/gtd-coach/.env.graphiti:/app/.env.graphiti:ro
+      # Mount Claude commands output directory
+      - ${HOME}/.claude/commands:/root/.claude/commands
+    
+    ports:
+      # MCP server port (if needed for debugging)
+      - "5173:5173"
+    
+    networks:
+      - graphiti-network
+    
+    command: python mcp_server.py
+    
+    restart: unless-stopped
+    
+    depends_on:
+      - falkordb-check
+    
+    healthcheck:
+      test: ["CMD", "python", "-c", "import asyncio; from graphiti_memory import get_shared_memory; asyncio.run(get_shared_memory())"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s
+
+  # Health check service to ensure FalkorDB is available
+  falkordb-check:
+    image: redis:7-alpine
+    container_name: falkordb-health-check
+    command: >
+      sh -c "
+        until redis-cli -h host.docker.internal -p ${FALKORDB_PORT:-6380} ping; do
+          echo 'Waiting for FalkorDB on port ${FALKORDB_PORT:-6380}...'
+          sleep 2
+        done
+        echo 'FalkorDB is ready!'
+      "
+    networks:
+      - graphiti-network
+    restart: "no"
+
+networks:
+  graphiti-network:
+    name: graphiti-network
+    external: false
+
+# Note: This compose file assumes FalkorDB is already running via OrbStack
+# on port 6380 as configured in /Users/adeel/Documents/1_projects/falkordb/docker-compose.yml
