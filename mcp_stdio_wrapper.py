@@ -1,4 +1,4 @@
-#!/usr/bin/env python3
+#!/usr/bin/env ./venv/bin/python
 """
 MCP stdio wrapper for Docker deployment
 Ensures proper stdio transport and handles Docker-specific networking
@@ -13,22 +13,18 @@ from dotenv import load_dotenv
 
 # Load environment files
 if Path("/.dockerenv").exists():  # Running in Docker
-    # In Docker, update FalkorDB host to use Docker networking
+    # In Docker, load environment files
     load_dotenv(".env.graphiti")
     load_dotenv(".env", override=True)  # Override with mounted .env
     
-    # Update FalkorDB host for Docker networking
-    # Check host OS from environment variable passed by Docker Compose
-    host_os = os.environ.get("HOST_OS", "linux").lower()
-    if host_os in ["darwin", "windows", "win32"]:
-        os.environ["FALKORDB_HOST"] = "host.docker.internal"
-    else:
-        # For Linux host, use the service name from docker-compose
-        os.environ["FALKORDB_HOST"] = os.environ.get("FALKORDB_HOST", "falkordb")
+    # With OrbStack, falkordb.local works directly for container-to-container communication
+    # No need to override FALKORDB_HOST since it's already set to falkordb.local in .env.graphiti
+    logger_msg = "Running in Docker with OrbStack domain resolution"
 else:
     # Local development
     load_dotenv(".env.graphiti")
     load_dotenv(Path.home() / ".env", override=True)
+    logger_msg = "Running locally"
 
 # Configure logging for MCP
 logging.basicConfig(
@@ -50,8 +46,9 @@ async def main():
         from mcp_server import server, INSTRUCTIONS
         
         logger.info("Starting Graphiti MCP Server (stdio transport)")
-        logger.info(f"FalkorDB Host: {os.getenv('FALKORDB_HOST', 'localhost')}")
-        logger.info(f"FalkorDB Port: {os.getenv('FALKORDB_PORT', '6380')}")
+        logger.info(logger_msg)
+        logger.info(f"FalkorDB Host: {os.getenv('FALKORDB_HOST', 'falkordb.local')}")
+        logger.info(f"FalkorDB Port: {os.getenv('FALKORDB_PORT', '6379')}")
         logger.info(f"Group ID: {os.getenv('GRAPHITI_GROUP_ID', 'shared_gtd_knowledge')}")
         
         # Run server with stdio transport

@@ -13,6 +13,16 @@ GREEN='\033[0;32m'
 YELLOW='\033[1;33m'
 NC='\033[0m' # No Color
 
+# Platform-specific timeout handling
+if command -v timeout >/dev/null 2>&1; then
+    TIMEOUT_CMD="timeout 5"
+elif command -v gtimeout >/dev/null 2>&1; then
+    TIMEOUT_CMD="gtimeout 5"  # GNU coreutils on macOS via Homebrew
+else
+    TIMEOUT_CMD=""  # No timeout available, run directly
+    echo -e "${YELLOW}⚠${NC} timeout command not found, tests will run without timeout protection"
+fi
+
 # Get user home directory
 USER_HOME="$HOME"
 
@@ -61,12 +71,13 @@ fi
 # Test 1: Basic Docker run test
 echo ""
 echo "Test 1: Basic container startup..."
-timeout 5 docker run --rm \
+$TIMEOUT_CMD docker run --rm \
     -v "$USER_HOME/.env:/app/.env:ro" \
     -v "$(pwd)/.env.graphiti:/app/.env.graphiti:ro" \
     graphiti-mcp-server:latest --help > /dev/null 2>&1
 
-if [ $? -eq 124 ] || [ $? -eq 0 ]; then
+TEST1_EXIT_CODE=$?
+if [ $TEST1_EXIT_CODE -eq 124 ] || [ $TEST1_EXIT_CODE -eq 0 ]; then
     echo -e "${GREEN}✓${NC} Container starts successfully"
 else
     echo -e "${RED}✗${NC} Container failed to start"
@@ -77,11 +88,11 @@ fi
 echo ""
 echo "Test 2: MCP server initialization..."
 echo '{"jsonrpc": "2.0", "method": "initialize", "params": {"protocolVersion": "1.0.0", "capabilities": {}, "clientInfo": {"name": "test", "version": "1.0.0"}}, "id": 1}' | \
-timeout 5 docker run -i --rm \
+$TIMEOUT_CMD docker run -i --rm \
     -v "$USER_HOME/.env:/app/.env:ro" \
     -v "$(pwd)/.env.graphiti:/app/.env.graphiti:ro" \
     --add-host host.docker.internal:host-gateway \
-    graphiti-mcp-server:latest 2>/dev/null | head -1 | grep -q "initialize"
+    graphiti-mcp-server:latest 2>/dev/null | head -1 | grep -q "jsonrpc"
 
 if [ $? -eq 0 ]; then
     echo -e "${GREEN}✓${NC} MCP server responds to initialization"

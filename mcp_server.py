@@ -1,4 +1,4 @@
-#!/usr/bin/env python3
+#!/usr/bin/env ./venv/bin/python
 """
 MCP Server for Claude Code Memory
 Provides endpoints for memory operations with GTD integration
@@ -345,7 +345,7 @@ async def call_tool(name: str, arguments: Dict[str, Any]) -> Any:
     elif name == "get_gtd_context":
         # Get GTD context
         tasks = await memory.search_with_temporal_weight(
-            "@computer task active",
+            "computer task active",
             filter_source="gtd_coach"
         )
         projects = await memory.search_with_temporal_weight(
@@ -428,14 +428,26 @@ async def call_tool(name: str, arguments: Dict[str, Any]) -> Any:
 
 def _format_memory(memory: Any) -> Dict[str, Any]:
     """Format memory for output"""
-    metadata = getattr(memory, 'metadata', {})
+    # Handle both dict-like metadata and object attributes
+    if hasattr(memory, 'metadata'):
+        metadata = memory.metadata
+    elif isinstance(memory, dict):
+        metadata = memory
+    else:
+        metadata = {}
+    
+    # Safely extract fields with fallbacks
+    memory_id = getattr(memory, 'id', getattr(memory, 'uuid', None))
+    
+    # Handle score - it might be 'final_score', 'score', or not exist at all
+    score = getattr(memory, 'final_score', getattr(memory, 'score', 0))
     
     return {
-        "id": getattr(memory, 'id', None),
+        "id": memory_id,
         "title": metadata.get("title", "Untitled"),
         "source": metadata.get("source", "unknown"),
-        "status": getattr(memory, "status", "unknown"),
-        "score": getattr(memory, "final_score", 0),
+        "status": getattr(memory, "status", metadata.get("status", "unknown")),
+        "score": score,
         "timestamp": metadata.get("timestamp", None),
         "cross_references": metadata.get("cross_references", []),
         "content_preview": str(metadata)[:200] + "..." if len(str(metadata)) > 200 else str(metadata)

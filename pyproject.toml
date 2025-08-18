@@ -5,7 +5,7 @@ description = "Graphiti memory layer for Claude Code with GTD Coach integration"
 authors = [{name = "Adeel", email = "adeelahmad@live.co.uk"}]
 requires-python = ">=3.9"
 dependencies = [
-    "graphiti-core[falkordb]>=0.17.7",
+    "graphiti-core[falkordb]>=0.17.7,<0.17.10",
     "python-dotenv>=1.0.0",
     "mcp>=0.1.0",
     "pydantic>=2.0.0",
