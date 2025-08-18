@@ -11,6 +11,13 @@ from typing import Dict, List, Optional, Any
 from enum import Enum
 
 from graphiti_memory import get_shared_memory, MemoryStatus
+from memory_models import (
+    MetadataFactory,
+    TDDCycleMetadata,
+    DeploymentSolutionMetadata,
+    DockerFixMetadata,
+    CommandPatternMetadata
+)
 
 logger = logging.getLogger(__name__)
 
@@ -58,18 +65,18 @@ class PatternCapture:
         Returns:
             Memory ID
         """
-        cycle_data = {
-            'type': PatternType.TDD_CYCLE.value,
-            'title': f"TDD Pattern: {feature_name or 'Feature'}",
-            'red_phase': test_code,
-            'green_phase': implementation,
-            'refactor_phase': refactored,
-            'feature': feature_name,
-            'methodology': 'TDD',
-            'language': 'python',
-            'test_framework': 'pytest',
-            'gtd_link': f"@computer TDD {feature_name}" if feature_name else None
-        }
+        # Use Pydantic model for validation
+        metadata = TDDCycleMetadata(
+            title=f"TDD Pattern: {feature_name or 'Feature'}",
+            red_phase=test_code,
+            green_phase=implementation,
+            refactor_phase=refactored,
+            feature=feature_name or "unnamed_feature",
+            gtd_link=f"TDD {feature_name}" if feature_name else None
+        )
+        
+        # Convert to dict for storage
+        cycle_data = metadata.model_dump()
         
         # Store in active cycles for potential updates
         if feature_name:
@@ -102,22 +109,52 @@ class PatternCapture:
         # Check for existing solutions to this error
         existing = await self._find_similar_solution(error)
         
+        # Clean context to avoid special characters that break RediSearch
+        def clean_for_search(obj):
+            """Recursively clean objects for safe storage"""
+            import re
+            if isinstance(obj, dict):
+                return {k: clean_for_search(v) for k, v in obj.items()}
+            elif isinstance(obj, list):
+                return [clean_for_search(item) for item in obj]
+            elif isinstance(obj, str):
+                # Remove problematic characters for RediSearch
+                # Keep alphanumeric, spaces, and common safe punctuation
+                cleaned = re.sub(r'[@:"\']', ' ', obj)
+                cleaned = re.sub(r'\s+', ' ', cleaned).strip()
+                return cleaned
+            else:
+                return obj
+        
+        # Clean the context before serialization
+        cleaned_context = clean_for_search(context)
+        
+        # Serialize context to avoid FalkorDB nested JSON issues
+        context_obj = {
+            'orbstack': True,
+            'docker_compose': docker_compose,
+            'falkordb_port': 6380,
+            'environment': cleaned_context
+        }
+        
+        try:
+            context_str = json.dumps(context_obj)
+        except (TypeError, ValueError) as e:
+            # Fallback for non-serializable objects
+            logger.warning(f"Context serialization failed: {e}")
+            context_str = str(context_obj)
+        
         solution_data = {
             'type': PatternType.DEPLOYMENT_SOLUTION.value,
             'title': f"Fix: {error[:50]}...",
             'error': error,
             'solution': solution,
-            'context': {
-                'orbstack': True,
-                'docker_compose': docker_compose,
-                'falkordb_port': 6380,
-                'environment': context
-            },
+            'context': context_str,  # Store as JSON string
             'success_count': 1,
-            'gtd_link': '@computer deployment fix'
+            'gtd_link': 'deployment fix'
         }
         
-        if existing and existing[0].final_score > 0.8:
+        if existing and getattr(existing[0], 'final_score', 0) > 0.8:
             # Supersede existing solution
             old_id = existing[0].metadata.get('id') or getattr(existing[0], 'id', None)
             if old_id:
@@ -167,7 +204,7 @@ class PatternCapture:
             'docker_compose': compose_snippet,
             'orbstack_compatible': True,
             'port_configuration': '6380',  # Your FalkorDB port
-            'gtd_link': '@computer docker troubleshooting'
+            'gtd_link': 'docker troubleshooting'
         }
         
         memory_id = await self.memory.add_memory(docker_data, source="claude_code")
@@ -226,17 +263,45 @@ class PatternCapture:
         Returns:
             Memory ID
         """
+        # Clean structure to avoid special characters that break RediSearch
+        def clean_for_search(obj):
+            """Recursively clean objects for safe storage"""
+            import re
+            if isinstance(obj, dict):
+                return {k: clean_for_search(v) for k, v in obj.items()}
+            elif isinstance(obj, list):
+                return [clean_for_search(item) for item in obj]
+            elif isinstance(obj, str):
+                # Remove problematic characters for RediSearch
+                cleaned = re.sub(r'[@:"\']', ' ', obj)
+                cleaned = re.sub(r'\s+', ' ', cleaned).strip()
+                return cleaned
+            else:
+                return obj
+        
+        # Clean the structure before serialization
+        cleaned_structure = clean_for_search(structure)
+        
+        # Serialize structure and preferences to avoid nested JSON issues
+        try:
+            structure_str = json.dumps(cleaned_structure)
+        except (TypeError, ValueError) as e:
+            logger.warning(f"Structure serialization failed: {e}")
+            structure_str = str(cleaned_structure)
+        
+        preferences_str = json.dumps({
+            'root_level': 'minimal',
+            'tests': 'separate tests/ directory',
+            'monorepo': 'start with monorepo',
+            'clean': True
+        })
+        
         structure_data = {
             'type': PatternType.PROJECT_STRUCTURE.value,
             'title': 'Project Structure Pattern',
-            'structure': structure,
+            'structure': structure_str,  # Store as JSON string
             'description': description or 'Minimal, clean root-level structure',
-            'preferences': {
-                'root_level': 'minimal',
-                'tests': 'separate tests/ directory',
-                'monorepo': 'start with monorepo',
-                'clean': True
-            },
+            'preferences': preferences_str,  # Store as JSON string
             'gtd_link': 'project organization'
         }
         
@@ -272,7 +337,7 @@ class PatternCapture:
             'success': success,
             'output': output[:500] if output else None,
             'frequency': 1,
-            'gtd_link': '@computer command reference'
+            'gtd_link': 'command reference'
         }
         
         # Check for existing command pattern
@@ -281,7 +346,7 @@ class PatternCapture:
             filter_source="claude_code"
         )
         
-        if existing and existing[0].final_score > 0.9:
+        if existing and getattr(existing[0], 'final_score', 0) > 0.9:
             # Update frequency count
             old_data = existing[0].metadata
             old_data['frequency'] = old_data.get('frequency', 1) + 1
@@ -316,18 +381,32 @@ class PatternCapture:
         )
         
         if gtd_tasks:
-            task_id = getattr(gtd_tasks[0], 'id', None)
+            task_id = getattr(gtd_tasks[0], 'id', getattr(gtd_tasks[0], 'uuid', None))
             if task_id:
-                await self.memory.link_to_gtd_task(memory_id, task_id)
-                logger.info(f"Linked memory {memory_id} to GTD task {task_id}")
+                # Link is tracked through metadata, not explicit relations in v0.17.9
+                logger.info(f"Found GTD task {task_id} for memory {memory_id}")
                 return task_id
         
         return None
     
     async def _find_similar_solution(self, error: str) -> List[Any]:
         """Find similar solutions to an error"""
+        # Remove special characters from error string to avoid RediSearch syntax errors
+        # Use only alphanumeric characters and spaces for the search
+        import re
+        clean_error = re.sub(r'[^a-zA-Z0-9\s]', ' ', error[:50])
+        # Remove extra spaces
+        clean_error = ' '.join(clean_error.split())
+        
+        if not clean_error.strip():
+            # If no valid search terms remain, just search by type
+            return await self.memory.search_with_temporal_weight(
+                "deployment_solution",
+                filter_source="claude_code"
+            )
+        
         return await self.memory.search_with_temporal_weight(
-            f"error: {error[:50]}",
+            f"error {clean_error}",
             filter_source="claude_code"
         )
     
