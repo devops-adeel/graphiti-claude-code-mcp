@@ -5,10 +5,14 @@ This document covers the specific configuration required when using OrbStack ins
 ## Overview
 
 OrbStack provides enhanced Docker container networking with features like:
-- Custom domain names for containers (`container.orb.local`)
+- Custom domain names for containers (`container.local`)
 - Direct IP access from macOS
 - Automatic port detection for web services
 - Better localhost integration
+
+## Key Configuration Change
+
+The primary difference when using OrbStack is that containers communicate using OrbStack's custom domains (`falkordb.local`) instead of Docker Desktop's `host.docker.internal`.
 
 ## FalkorDB with OrbStack
 
@@ -16,132 +20,189 @@ OrbStack provides enhanced Docker container networking with features like:
 
 FalkorDB runs with the following port mapping:
 - **Internal port**: 6379 (default Redis/FalkorDB port)
-- **External port**: 6380 (mapped to avoid conflicts)
-- **Container**: `falkordb`
+- **External port**: 6380 (mapped to avoid conflicts with local Redis)
+- **Container name**: `falkordb`
+- **OrbStack domain**: `falkordb.local`
+
+### Docker Compose Label
+
+To enable the custom domain in OrbStack, add this label to your FalkorDB container:
+```yaml
+labels:
+  - "dev.orbstack.domains=falkordb.local"
+```
 
 ### Access Methods
 
 With OrbStack, FalkorDB can be accessed via:
 
-1. **Standard Docker port mapping**: `localhost:6380`
-2. **OrbStack custom domain**: `falkordb.local:6379` 
-3. **OrbStack automatic domain**: `falkordb.orb.local:6379`
-4. **Direct container IP**: `192.168.148.2:6379` (IP may vary)
+1. **From host machine**: `localhost:6380` (standard Docker port mapping)
+2. **From containers**: `falkordb.local:6379` (OrbStack domain with internal port)
+3. **Direct container IP**: Available but not recommended as IPs can change
 
 ## Configuration Files
 
 ### .env.graphiti
 
 ```bash
-# Shared Configuration for Testing
+# Shared Configuration for graphiti-claude-code-mcp
 GRAPHITI_GROUP_ID=shared_gtd_knowledge
-# OrbStack: Use localhost with mapped port or falkordb.local with internal port
-FALKORDB_HOST=localhost
-FALKORDB_PORT=6380
+# OrbStack: Use falkordb.local for container-to-container communication
+FALKORDB_HOST=falkordb.local
+FALKORDB_PORT=6379
 FALKORDB_DATABASE=shared_knowledge_graph
+
+# OpenAI Configuration (will be overridden by ~/.env)
+OPENAI_API_KEY=placeholder-set-in-home-env
+OPENAI_MODEL=gpt-4o-mini
+OPENAI_EMBEDDING_MODEL=text-embedding-3-small
+
+# Memory Configuration
+MEMORY_DECAY_FACTOR=0.95
+MEMORY_INCLUDE_HISTORICAL=false
+ENABLE_GTD_INTEGRATION=true
+ENABLE_CROSS_REFERENCES=true
+```
+
+### docker-compose.yml
+
+Key environment variables for container communication:
+```yaml
+environment:
+  - FALKORDB_HOST=${FALKORDB_HOST:-falkordb.local}
+  - FALKORDB_PORT=${FALKORDB_PORT:-6379}
+  - OPENAI_API_KEY=${OPENAI_API_KEY}  # Pass API key directly
 ```
 
 ### ~/.env (User home directory)
 
-For Docker containers to connect properly:
-
+Your personal API keys:
 ```bash
-# FalkorDB configuration for Docker containers
-# When running in Docker, use host.docker.internal for macOS/Windows
-HOST_OS=darwin
-FALKORDB_HOST=host.docker.internal
-FALKORDB_PORT=6380
+OPENAI_API_KEY=your-actual-api-key-here
 ```
 
-## Docker Container Networking
+## Container Networking Details
 
-When the MCP server runs in a Docker container, it needs special configuration:
+### MCP Server in Docker
 
-1. **Inside Docker containers**, `localhost` refers to the container itself, not the host
-2. **On macOS with OrbStack**, use `host.docker.internal` to reach the host machine
-3. The `mcp_stdio_wrapper.py` automatically handles this conversion when `HOST_OS=darwin`
+When the MCP server runs in a Docker container with OrbStack:
 
-## Testing Connection
+1. **Container-to-container**: Use `falkordb.local:6379`
+2. **No host.docker.internal needed**: OrbStack's domains work directly
+3. **Environment variables**: Pass `OPENAI_API_KEY` directly to containers
 
-Use the provided `test_connection.py` script to verify connectivity:
+### Python Buffering Fix
 
-```bash
-source venv/bin/activate
-python test_connection.py
+The `mcp_stdio_wrapper.py` includes buffering controls for Docker:
+```python
+# Ensure unbuffered output for Docker
+os.environ["PYTHONUNBUFFERED"] = "1"
+sys.stdout.reconfigure(line_buffering=True)
+sys.stderr.reconfigure(line_buffering=True)
 ```
 
-Expected output:
-```
-Testing: localhost with mapped port
-  Host: localhost
-  Port: 6380
-  ✅ FalkorDB client connected
-  ✅ SharedMemory initialized
-  ✅ Search executed (found X results)
+## Testing
 
-🎉 SUCCESS: localhost with mapped port works!
-```
+### Test Script Updates
+
+The `scripts/test-docker.sh` script has been updated for OrbStack:
+- Removed `--add-host host.docker.internal:host-gateway` flags
+- Uses `falkordb.local:6379` for container communication
+- Passes `OPENAI_API_KEY` as environment variable
+- Increased timeout to 15s for initialization
+
+### Running Tests
+
+1. **Test FalkorDB connectivity**:
+   ```bash
+   nc -zv localhost 6380  # From host
+   ping falkordb.local    # Check domain resolution
+   ```
+
+2. **Run Docker test script**:
+   ```bash
+   ./scripts/test-docker.sh
+   ```
+
+3. **Test MCP server locally**:
+   ```bash
+   source venv/bin/activate
+   python test_connection.py
+   ```
 
 ## Troubleshooting
 
-### Connection Refused Errors
+### Connection Issues
 
-If you see "Error 111 connecting to localhost:6380. Connection refused":
+If containers can't connect to FalkorDB:
 
 1. **Verify FalkorDB is running**:
    ```bash
    docker ps | grep falkor
    ```
 
-2. **Test connectivity directly**:
+2. **Check OrbStack domain**:
    ```bash
-   nc -zv localhost 6380
-   nc -zv falkordb.local 6379
+   # Should resolve to container IP
+   ping falkordb.local
    ```
 
-3. **Check Docker logs**:
+3. **Verify port mapping**:
    ```bash
-   docker logs falkordb
+   # From host machine
+   redis-cli -h localhost -p 6380 ping
    ```
 
-### MCP Server in Docker
+### MCP Server Issues
 
-If the MCP server runs in Docker and can't connect:
+If the MCP server appears unresponsive:
 
-1. **Ensure HOST_OS is set**: The container needs `HOST_OS=darwin` in environment
-2. **Check the wrapper script**: `mcp_stdio_wrapper.py` should convert `localhost` to `host.docker.internal`
-3. **Rebuild the Docker image** after any changes:
+1. **Check Python buffering**: Ensure `PYTHONUNBUFFERED=1` is set
+2. **Monitor logs**: 
    ```bash
-   docker build -t graphiti-mcp-server:latest .
+   docker compose logs -f graphiti-mcp
    ```
-
-### OrbStack-Specific Features
-
-1. **Custom domains**: Set via Docker labels
-   ```yaml
-   labels:
-     - "dev.orbstack.domains=falkordb.local"
-   ```
-
-2. **Direct IP access**: Find container IP with:
+3. **Test connectivity from container**:
    ```bash
-   docker inspect falkordb | grep IPAddress
+   docker run --rm redis:7-alpine redis-cli -h falkordb.local -p 6379 ping
    ```
 
-3. **Network settings**: Ensure "Allow access to container domains & IPs" is enabled in OrbStack Settings → Network
+## OrbStack vs Docker Desktop
+
+### Key Differences
+
+| Feature | Docker Desktop | OrbStack |
+|---------|---------------|----------|
+| Host access from container | `host.docker.internal` | Not needed (use custom domains) |
+| Container domains | Not available | `container.local` via labels |
+| Network setup | Manual `--add-host` flags | Automatic with domains |
+| Performance | Good | Better (native virtualization) |
+
+### Migration Checklist
+
+When switching from Docker Desktop to OrbStack:
+
+1. ✅ Update `FALKORDB_HOST` to `falkordb.local`
+2. ✅ Use internal port (6379) for container communication
+3. ✅ Remove `--add-host` flags from Docker commands
+4. ✅ Add OrbStack domain labels to containers
+5. ✅ Pass environment variables directly (not via volume mounts)
 
 ## Best Practices
 
-1. **Use explicit configuration**: Always set `FALKORDB_HOST` and `FALKORDB_PORT` explicitly
-2. **Test before deploying**: Use `test_connection.py` to verify setup
-3. **Monitor logs**: Check both FalkorDB and MCP server logs for issues
-4. **Keep ports consistent**: Use 6380 for external access to avoid conflicts
+1. **Use explicit domains**: Always use `falkordb.local` for clarity
+2. **Consistent ports**: Keep 6380 for external, 6379 for internal
+3. **Environment variables**: Pass secrets directly, not through mounted files
+4. **Buffering controls**: Always set `PYTHONUNBUFFERED=1` for Python in Docker
+5. **Health checks**: Use OrbStack domains in health check scripts
 
 ## Summary
 
-The key to successful OrbStack integration is understanding the networking differences:
-- Local processes use `localhost:6380`
-- Docker containers use `host.docker.internal:6380`
-- OrbStack provides additional access via custom domains
+OrbStack simplifies Docker networking with custom domains, eliminating the need for `host.docker.internal` workarounds. The key configuration points are:
 
-With proper configuration in `.env.graphiti` and `~/.env`, the graphiti-claude-code MCP server will work seamlessly with FalkorDB running in OrbStack.
+- Containers use `falkordb.local:6379` for FalkorDB access
+- Host machines use `localhost:6380`
+- Environment variables are passed directly to containers
+- Python buffering is explicitly disabled for proper stdio handling
+
+With these configurations, the graphiti-claude-code MCP server works seamlessly with FalkorDB running in OrbStack.
