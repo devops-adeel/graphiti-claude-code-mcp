@@ -8,9 +8,12 @@ services:
       dockerfile: Dockerfile
     container_name: graphiti-claude-code-mcp
     environment:
+      # Host OS detection for proper Docker networking
+      - HOST_OS=${HOST_OS:-linux}
+      
       # Shared configuration with GTD Coach
       - GRAPHITI_GROUP_ID=${GRAPHITI_GROUP_ID:-shared_gtd_knowledge}
-      - FALKORDB_HOST=host.docker.internal
+      # FALKORDB_HOST is now set dynamically in mcp_stdio_wrapper.py based on HOST_OS
       - FALKORDB_PORT=${FALKORDB_PORT:-6380}
       - FALKORDB_DATABASE=${FALKORDB_DATABASE:-shared_knowledge_graph}
       

@@ -18,8 +18,13 @@ if Path("/.dockerenv").exists():  # Running in Docker
     load_dotenv(".env", override=True)  # Override with mounted .env
     
     # Update FalkorDB host for Docker networking
-    if sys.platform == "darwin" or sys.platform == "win32":
+    # Check host OS from environment variable passed by Docker Compose
+    host_os = os.environ.get("HOST_OS", "linux").lower()
+    if host_os in ["darwin", "windows", "win32"]:
         os.environ["FALKORDB_HOST"] = "host.docker.internal"
+    else:
+        # For Linux host, use the service name from docker-compose
+        os.environ["FALKORDB_HOST"] = os.environ.get("FALKORDB_HOST", "falkordb")
 else:
     # Local development
     load_dotenv(".env.graphiti")
