@@ -46,8 +46,8 @@ async def main():
         from mcp.server.models import InitializationOptions
         from mcp.server import NotificationOptions
         
-        # Import our server (this will use the configured environment)
-        from mcp_server import server
+        # Import our server and instructions (this will use the configured environment)
+        from mcp_server import server, INSTRUCTIONS
         
         logger.info("Starting Graphiti MCP Server (stdio transport)")
         logger.info(f"FalkorDB Host: {os.getenv('FALKORDB_HOST', 'localhost')}")
@@ -66,6 +66,7 @@ async def main():
                         notification_options=NotificationOptions(),
                         experimental_capabilities={},
                     ),
+                    instructions=INSTRUCTIONS,
                 ),
             )
     except ImportError as e:

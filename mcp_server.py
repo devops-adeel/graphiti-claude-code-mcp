@@ -23,6 +23,51 @@ logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
 
+# Comprehensive instructions for Claude Code
+INSTRUCTIONS = """This server provides access to a temporal knowledge graph memory system shared with GTD Coach.
+
+AUTOMATIC BEHAVIORS:
+• At session start: Silently retrieve GTD context to prioritize work
+• When encountering errors: Search for similar errors (score > 0.7) and apply solutions automatically  
+• For complex tasks: Proactively search for cross-domain insights between GTD and coding
+• During debugging: Auto-capture insights and failed solutions
+
+MEMORY USAGE:
+• Confidence > 0.7: Apply automatically
+• Confidence 0.5-0.7: Mention and ask for confirmation  
+• When showing influence: Use brief inline format [Memory: Docker fix (2d ago, score: 0.85)]
+• Search just-in-time as needed, max 10 results per search
+• If no memories found, proceed silently
+
+CONFLICT RESOLUTION:
+• Use temporal decay scores as primary factor
+• For conflicts within 0.1 score: Notify user explicitly
+• Try solutions in order of recency
+
+MEMORY CAPTURE:
+• Auto-capture debugging insights
+• Capture failed attempts with 'failed_solution' status
+• Link to GTD tasks when context matches
+• Supersede old solutions while preserving learning trail
+• Mark 30+ day old memories as HISTORICAL
+
+TOOLS:
+• capture_solution: Capture coding solutions and fixes
+• capture_tdd_pattern: Record TDD red-green-refactor cycles
+• search_memory: Search the knowledge graph with temporal weighting
+• find_cross_insights: Discover cross-domain connections
+• get_gtd_context: Retrieve current GTD tasks and projects
+• supersede_memory: Update existing memories
+• capture_command: Record command patterns
+• get_memory_evolution: Trace solution evolution
+• generate_commands: Create memory-aware Claude commands
+
+RESOURCES:
+• memory://shared-knowledge: Overview of the shared knowledge graph
+• memory://gtd-context: Current GTD tasks and projects
+• memory://patterns: Captured coding patterns and solutions
+• memory://commands: Generated Claude Code commands"""
+
 # Initialize MCP server
 server = Server("graphiti-claude-code-mcp")
 
@@ -423,8 +468,24 @@ async def main():
     logger.info("✅ All components initialized")
     logger.info("MCP Server ready for connections")
     
-    # Run server
-    await server.run()
+    # Run server with stdio transport and instructions
+    import mcp.server.stdio
+    from mcp.server import NotificationOptions
+    
+    async with mcp.server.stdio.stdio_server() as (read_stream, write_stream):
+        await server.run(
+            read_stream,
+            write_stream,
+            InitializationOptions(
+                server_name="graphiti-claude-code-mcp",
+                server_version="0.1.0",
+                capabilities=server.get_capabilities(
+                    notification_options=NotificationOptions(),
+                    experimental_capabilities={},
+                ),
+                instructions=INSTRUCTIONS,
+            ),
+        )
 
 
 if __name__ == "__main__":
