@@ -11,15 +11,28 @@ import sys
 from pathlib import Path
 from dotenv import load_dotenv
 
+# Ensure unbuffered output for Docker
+os.environ["PYTHONUNBUFFERED"] = "1"
+sys.stdout.reconfigure(line_buffering=True)
+sys.stderr.reconfigure(line_buffering=True)
+
 # Load environment files
 if Path("/.dockerenv").exists():  # Running in Docker
     # In Docker, load environment files
     load_dotenv(".env.graphiti")
-    load_dotenv(".env", override=True)  # Override with mounted .env
+    load_dotenv(".env", override=True)  # Override with mounted .env for OPENAI_API_KEY
     
-    # With OrbStack, falkordb.local works directly for container-to-container communication
-    # No need to override FALKORDB_HOST since it's already set to falkordb.local in .env.graphiti
-    logger_msg = "Running in Docker with OrbStack domain resolution"
+    # OrbStack uses custom domains for container-to-container communication
+    # FalkorDB is accessible at falkordb.local:6379 from containers
+    logger_msg = "Running in Docker with OrbStack networking"
+    
+    # Verify FalkorDB configuration
+    falkordb_host = os.getenv('FALKORDB_HOST', 'falkordb.local')
+    falkordb_port = os.getenv('FALKORDB_PORT', '6379')
+    
+    # Log configuration for debugging
+    sys.stderr.write(f"FalkorDB configuration: {falkordb_host}:{falkordb_port}\n")
+    sys.stderr.flush()
 else:
     # Local development
     load_dotenv(".env.graphiti")
@@ -42,6 +55,22 @@ async def main():
         from mcp.server.models import InitializationOptions
         from mcp.server import NotificationOptions
         
+        # Test FalkorDB connectivity before starting server
+        if Path("/.dockerenv").exists():
+            logger.info("Testing FalkorDB connectivity...")
+            try:
+                from falkordb import FalkorDB
+                db = FalkorDB(
+                    host=os.getenv('FALKORDB_HOST', 'falkordb.local'),
+                    port=int(os.getenv('FALKORDB_PORT', '6379'))
+                )
+                # Quick ping test
+                db.select_graph("test_connection")
+                logger.info("✅ FalkorDB connection successful")
+            except Exception as e:
+                logger.warning(f"⚠️ FalkorDB connection test failed: {e}")
+                logger.warning("Server will start but may have issues with memory operations")
+        
         # Import our server and instructions (this will use the configured environment)
         from mcp_server import server, INSTRUCTIONS
         
@@ -50,6 +79,9 @@ async def main():
         logger.info(f"FalkorDB Host: {os.getenv('FALKORDB_HOST', 'falkordb.local')}")
         logger.info(f"FalkorDB Port: {os.getenv('FALKORDB_PORT', '6379')}")
         logger.info(f"Group ID: {os.getenv('GRAPHITI_GROUP_ID', 'shared_gtd_knowledge')}")
+        
+        # Flush logs before starting stdio server
+        sys.stderr.flush()
         
         # Run server with stdio transport
         async with mcp.server.stdio.stdio_server() as (read_stream, write_stream):
@@ -69,9 +101,13 @@ async def main():
     except ImportError as e:
         logger.error(f"Import error: {e}")
         logger.error("Make sure all dependencies are installed")
+        sys.stderr.flush()
         sys.exit(1)
     except Exception as e:
         logger.error(f"Server error: {e}")
+        import traceback
+        logger.error(traceback.format_exc())
+        sys.stderr.flush()
         sys.exit(1)
 
 if __name__ == "__main__":
