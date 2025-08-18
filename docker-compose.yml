@@ -8,13 +8,11 @@ services:
       dockerfile: Dockerfile
     container_name: graphiti-claude-code-mcp
     environment:
-      # Host OS detection for proper Docker networking
-      - HOST_OS=${HOST_OS:-linux}
-      
       # Shared configuration with GTD Coach
       - GRAPHITI_GROUP_ID=${GRAPHITI_GROUP_ID:-shared_gtd_knowledge}
-      # FALKORDB_HOST is now set dynamically in mcp_stdio_wrapper.py based on HOST_OS
-      - FALKORDB_PORT=${FALKORDB_PORT:-6380}
+      # Using OrbStack custom domain for container-to-container communication
+      - FALKORDB_HOST=${FALKORDB_HOST:-falkordb.local}
+      - FALKORDB_PORT=${FALKORDB_PORT:-6379}
       - FALKORDB_DATABASE=${FALKORDB_DATABASE:-shared_knowledge_graph}
       
       # OpenAI Configuration
@@ -67,8 +65,8 @@ services:
     container_name: falkordb-health-check
     command: >
       sh -c "
-        until redis-cli -h host.docker.internal -p ${FALKORDB_PORT:-6380} ping; do
-          echo 'Waiting for FalkorDB on port ${FALKORDB_PORT:-6380}...'
+        until redis-cli -h falkordb.local -p 6379 ping; do
+          echo 'Waiting for FalkorDB at falkordb.local:6379...'
           sleep 2
         done
         echo 'FalkorDB is ready!'
