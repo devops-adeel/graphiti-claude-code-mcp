@@ -11,11 +11,23 @@ RUN apt-get update && apt-get install -y \
 
 # Copy project files
 COPY pyproject.toml ./
-COPY *.py ./
+
+# Copy Python modules explicitly
+COPY graphiti_memory.py ./
+COPY memory_models.py ./
+COPY capture.py ./
+COPY commands.py ./
+COPY mcp_server.py ./
+COPY mcp_stdio_wrapper.py ./
+
+# Copy test directory
 COPY tests/ ./tests/
 
 # Install Python dependencies
 RUN pip install --no-cache-dir -e .
+
+# Verify critical Python modules can be imported
+RUN python -c "import memory_models, capture, graphiti_memory, commands, mcp_server"
 
 # Create directories for Claude commands
 RUN mkdir -p /root/.claude/commands
