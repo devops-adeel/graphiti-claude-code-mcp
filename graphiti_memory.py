@@ -589,13 +589,18 @@ class SharedMemory:
         # Sort by final score
         weighted_results.sort(key=lambda x: x['final_score'], reverse=True)
         
-        # Extract the actual results without modifying them
+        # Wrap results in SearchResultWrapper objects with computed metadata
         # Return just the top 10 results
         final_results = []
         for wrapper in weighted_results[:10]:  # Get top 10
             result = wrapper['result']
-            # Don't modify the original object, just return it
-            final_results.append(result)
+            # Wrap in SearchResultWrapper with computed metadata and score
+            wrapped_result = SearchResultWrapper(
+                result=result,
+                computed_score=wrapper['final_score'],
+                metadata=wrapper['metadata']
+            )
+            final_results.append(wrapped_result)
         
         # Check if results fit within token limits
         total_tokens = self.count_tokens(query)
