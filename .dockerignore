@@ -1,0 +1,72 @@
+# Python
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+.Python
+*.egg-info/
+venv/
+.venv/
+*.so
+
+# Testing
+.coverage
+.pytest_cache/
+tests/
+*.test.py
+test_*.py
+
+# Development
+.git/
+.gitignore
+*.md
+docs/
+Makefile
+docker-compose*.yml
+Dockerfile*
+.pre-commit-config.yaml
+.gitleaks.toml
+cliff.toml
+claude_config_example.json
+
+# IDE
+.vscode/
+.idea/
+*.swp
+.DS_Store
+
+# Build artifacts
+build/
+dist/
+build.log
+*.log
+
+# Cache
+llm_cache/
+.cache/
+*.db
+
+# Environment
+.env*
+secrets/
+
+# Scripts (we don't need these in the runtime container)
+scripts/
+
+# CI/CD
+.github/
+.gitlab-ci.yml
+.travis.yml
+
+# Documentation
+README.*
+LICENSE.*
+CHANGELOG.*
+SECURITY.*
+CLAUDE.*
+
+# Temporary files
+*.tmp
+*.bak
+*.backup
+*~
