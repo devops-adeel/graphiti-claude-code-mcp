@@ -19,7 +19,7 @@ if gtd_scripts_path.exists():
     sys.path.insert(0, str(gtd_scripts_path))
 
 try:
-    from analyze_langfuse_traces import (
+    from .analyze_langfuse_traces import (
         analyze_recent_traces,
         get_trace_details,
         analyze_phase_transition,

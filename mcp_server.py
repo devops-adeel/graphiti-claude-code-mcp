@@ -833,7 +833,7 @@ async def call_tool(name: str, arguments: Dict[str, Any]) -> Any:
             analyzer = await get_langfuse_analyzer()
             # Call the original debug_session function if available
             try:
-                from analyze_langfuse_traces import debug_session
+                from langfuse_integration.analyze_langfuse_traces import debug_session
                 # Run in executor since it's sync
                 loop = asyncio.get_event_loop()
                 result = await loop.run_in_executor(
