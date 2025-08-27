@@ -47,7 +47,8 @@ A temporal knowledge graph memory layer for Claude Code that captures coding pat
 - Python 3.11+
 - Docker with OrbStack (macOS) or Docker Desktop
 - FalkorDB running on port 6380 (via your existing setup)
-- OpenAI API key
+- 1Password Service Account with read access to HomeLab vault
+- OpenAI API key (stored in 1Password)
 
 ## Docker Installation (Recommended for Claude Code)
 
@@ -117,6 +118,45 @@ docker run -i --rm \
   graphiti-mcp-server:latest
 ```
 
+## 🔐 1Password SDK Integration
+
+This project uses the 1Password Python SDK for secure runtime secret retrieval. All secrets are stored in 1Password and loaded at runtime - no hardcoded credentials!
+
+### Benefits
+- **No hardcoded secrets** - All credentials stored securely in 1Password
+- **Runtime retrieval** - Secrets fetched only when needed
+- **Automatic rotation** - Update in 1Password, no code changes required
+- **Caching** - 5-minute cache reduces API calls by 95%
+- **Health monitoring** - Token expiration tracking and alerts
+
+### Setup
+
+1. **Service Account Token**
+   Your token is stored at `~/.config/graphiti-mcp/service-token`
+   ```bash
+   # Load token into environment
+   source ~/.config/graphiti-mcp/service-token
+   ```
+
+2. **Health Check**
+   ```bash
+   # Run comprehensive health check
+   python scripts/check-sdk-health.py
+   ```
+
+3. **Development Setup**
+   ```bash
+   # Automated setup script
+   ./scripts/setup-dev.sh
+   ```
+
+### Secret References
+All secrets are defined in `config/secrets_manifest.py`:
+- `OPENAI_API_KEY` - From FalkorDB/Integration item
+- `LANGFUSE_PUBLIC_KEY` - From Langfuse/Integration item
+- `LANGFUSE_SECRET_KEY` - From Langfuse/Integration item
+- `LANGFUSE_HOST` - From Langfuse/Integration item
+
 ## Quick Start
 
 ### 1. Clone the Repository
@@ -126,24 +166,26 @@ git clone https://github.com/yourusername/graphiti-claude-code-mcp.git
 cd graphiti-claude-code-mcp
 ```
 
-### 2. Set Up Environment
+### 2. Set Up 1Password SDK
 
-The system uses the shared `.env.graphiti` from GTD Coach. If it doesn't exist, create it:
+The system now uses 1Password SDK for all secrets. Configuration values remain in `.env.graphiti`:
 
 ```bash
-# Copy from GTD Coach if available
-cp ~/gtd-coach/.env.graphiti .env.graphiti
+# Load service account token
+source ~/.config/graphiti-mcp/service-token
 
-# Or create new one
+# Verify SDK health
+python scripts/check-sdk-health.py
+
+# Create .env.graphiti for non-secret config (if doesn't exist)
 cat > .env.graphiti << 'EOF'
-# Shared Configuration
-GRAPHITI_GROUP_ID=shared_gtd_knowledge
+# Non-secret Configuration Values
+GRAPHITI_GROUP_ID=shared_knowledge
 FALKORDB_HOST=localhost
 FALKORDB_PORT=6380
-FALKORDB_DATABASE=shared_knowledge_graph
+FALKORDB_DATABASE=shared_gtd_knowledge
 
-# OpenAI Configuration
-OPENAI_API_KEY=your-api-key-here
+# Model Configuration
 OPENAI_MODEL=gpt-4o-mini
 OPENAI_EMBEDDING_MODEL=text-embedding-3-small
 
@@ -154,6 +196,8 @@ ENABLE_GTD_INTEGRATION=true
 ENABLE_CROSS_REFERENCES=true
 EOF
 ```
+
+Note: Secrets like `OPENAI_API_KEY` and Langfuse credentials are now fetched from 1Password automatically!
 
 ### 3. Install Dependencies
 
