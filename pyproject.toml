@@ -11,6 +11,7 @@ dependencies = [
     "pydantic>=2.0.0",
     "asyncio>=3.4.3",
     "tiktoken>=0.5.0",
+    "langfuse>=3.3.0",
 ]
 
 [project.optional-dependencies]
@@ -31,7 +32,7 @@ testpaths = ["tests"]
 python_files = "test_*.py"
 
 [tool.setuptools]
-py-modules = ["graphiti_memory", "capture", "commands", "mcp_server"]
+py-modules = ["graphiti_memory", "capture", "commands", "mcp_server", "langfuse_analyzer", "langfuse_patterns", "langfuse_models"]
 
 [tool.ruff]
 line-length = 100

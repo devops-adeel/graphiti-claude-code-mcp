@@ -335,14 +335,29 @@ docker compose up
 
 ## Troubleshooting
 
+### Quick Diagnosis
+
+Run the health check script for immediate diagnosis:
+
+```bash
+# Basic health check
+make health-check
+
+# Detailed with FalkorDB queries shown
+make health-check-verbose
+
+# With fix suggestions
+make health-check-fix
+```
+
 ### FalkorDB Connection Failed
 
 ```bash
 # Check if FalkorDB is running
 docker ps | grep falkor
 
-# Test connection
-redis-cli -p 6380 ping
+# Test connection (port may be 6379 or 6380)
+redis-cli -p 6379 ping
 
 # Check logs
 docker logs falkordb
@@ -350,9 +365,10 @@ docker logs falkordb
 
 ### Memory Not Persisting
 
-1. Verify environment variables are loaded
-2. Check group_id matches: `shared_gtd_knowledge`
-3. Ensure OpenAI API key is valid
+1. Run health check: `make health-check-verbose`
+2. Verify group_id matches: `shared_knowledge`
+3. Check database name in `.env.graphiti`
+4. Ensure OpenAI API key is valid
 
 ### MCP Server Issues
 
@@ -363,9 +379,11 @@ python --version  # Should be 3.11+
 # Reinstall dependencies
 pip install -e . --force-reinstall
 
-# Check async loop
-python -c "import asyncio; print(asyncio.get_event_loop())"
+# Run health check
+python scripts/health_check_memory.py --fix
 ```
+
+For detailed troubleshooting, see `docs/TROUBLESHOOTING.md`
 
 ## Contributing
 

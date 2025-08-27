@@ -162,8 +162,8 @@ model: gpt-4.1-mini
 # Check running containers
 docker compose ps
 
-# Check specific service (FalkorDB on port 6380)
-docker exec falkordb redis-cli -p 6380 ping
+# Check specific service (FalkorDB on port 6379)
+docker exec falkordb redis-cli ping
 
 # View recent logs
 docker compose logs -f --tail=50
@@ -172,7 +172,7 @@ docker compose logs -f --tail=50
 ### 2. Verify Services:
 ```bash
 # Check FalkorDB
-curl -s http://localhost:6380/ping || echo "FalkorDB not responding"
+curl -s http://localhost:6379/ping || echo "FalkorDB not responding"
 
 # Check Netdata monitoring
 curl -s http://localhost:19999/api/v1/info | jq '.version' || echo "Netdata not available"
@@ -285,9 +285,9 @@ orb config get cpu
 If you find a new fix, it will be automatically captured for future use.
 
 ## Port Configuration Reminder:
-- FalkorDB runs on port 6380 (not default 6379)
+- FalkorDB runs on port 6379 (standard Redis port)
 - Netdata monitoring on port 19999
-- Always check port conflicts with: `lsof -i :6380`
+- Always check port conflicts with: `lsof -i :6379`
 """
         
         # Save command

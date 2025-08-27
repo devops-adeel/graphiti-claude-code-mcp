@@ -133,7 +133,7 @@ class PatternCapture:
         context_obj = {
             'orbstack': True,
             'docker_compose': docker_compose,
-            'falkordb_port': 6380,
+            'falkordb_port': 6379,
             'environment': cleaned_context
         }
         
@@ -203,7 +203,7 @@ class PatternCapture:
             'dockerfile': dockerfile_snippet,
             'docker_compose': compose_snippet,
             'orbstack_compatible': True,
-            'port_configuration': '6380',  # Your FalkorDB port
+            'port_configuration': '6379',  # Standard Redis port
             'gtd_link': 'docker troubleshooting'
         }
         

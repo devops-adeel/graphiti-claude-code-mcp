@@ -19,7 +19,7 @@ async def test_connection():
         {
             "name": "localhost with mapped port",
             "FALKORDB_HOST": "localhost", 
-            "FALKORDB_PORT": "6380"
+            "FALKORDB_PORT": "6379"
         },
         {
             "name": "OrbStack custom domain",

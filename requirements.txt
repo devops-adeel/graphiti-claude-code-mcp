@@ -1,0 +1,13 @@
+# Core dependencies
+graphiti-core[falkordb]>=0.17.7,<0.17.10
+python-dotenv>=1.0.0
+mcp>=0.1.0
+pydantic>=2.0.0
+asyncio>=3.4.3
+tiktoken>=0.5.0
+langfuse>=3.3.0
+
+# Additional dependencies for testing
+pytest>=7.0.0
+pytest-asyncio>=0.21.0
+pytest-cov>=4.0.0

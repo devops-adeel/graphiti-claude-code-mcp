@@ -173,17 +173,49 @@ Automatically detected:
 - Testing methodologies
 - Project references
 
+## Debugging Memory Issues
+
+### Quick Health Check
+When memories aren't captured or retrieved as expected, run the health check first:
+
+```bash
+# Basic check - shows pass/fail for each stage
+make health-check
+
+# Verbose mode - shows FalkorDB queries and internal operations  
+make health-check-verbose
+
+# Get fix suggestions for failures
+make health-check-fix
+
+# Full diagnostic (verbose + fixes)
+make health-check-all
+```
+
+The health check verifies:
+1. Configuration alignment with GTD Coach
+2. FalkorDB and OpenAI connections
+3. Memory capture pipeline
+4. Storage verification
+5. Retrieval and search
+6. Temporal decay calculations
+7. Cross-domain linking
+
+See `scripts/health_check_memory.py` for implementation details.
+Full troubleshooting guide: `docs/TROUBLESHOOTING.md`
+
 ## Troubleshooting
 
 ### FalkorDB Connection Issues
 1. Check FalkorDB is running: `docker ps | grep falkor`
-2. Verify port 6380: `redis-cli -p 6380 ping`
+2. Verify port 6379 or 6380: `redis-cli -p 6379 ping`
 3. Check environment variables in `.env.graphiti`
 
 ### Memory Not Persisting
-1. Verify group_id matches: `shared_gtd_knowledge`
-2. Check database name: `shared_knowledge_graph`
-3. Ensure OPENAI_API_KEY is set
+1. Run health check: `make health-check-verbose`
+2. Verify group_id matches: `shared_knowledge`
+3. Check database name: `shared_knowledge_graph` or `shared_gtd_knowledge`
+4. Ensure OPENAI_API_KEY is set
 
 ### MCP Server Not Starting
 1. Check Python dependencies: `pip install -e .`
