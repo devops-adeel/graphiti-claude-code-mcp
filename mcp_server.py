@@ -18,9 +18,29 @@ from mcp.types import Resource, Tool, TextContent, ImageContent, EmbeddedResourc
 from graphiti_memory import get_shared_memory, MemoryStatus
 from capture import get_pattern_capture, PatternType
 from commands import get_command_generator
+from langfuse_analyzer import get_langfuse_analyzer
 
+# Configure logging first
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
+
+# Import Langfuse for trace tagging (only if configured)
+try:
+    from langfuse import Langfuse
+    from langfuse.decorators import observe
+    # Initialize Langfuse client if API keys are available
+    if os.getenv("LANGFUSE_PUBLIC_KEY") and os.getenv("LANGFUSE_SECRET_KEY"):
+        langfuse_client = Langfuse()
+        LANGFUSE_ENABLED = True
+        logger.info("Langfuse tracing enabled for MCP server")
+    else:
+        langfuse_client = None
+        LANGFUSE_ENABLED = False
+        logger.info("Langfuse tracing disabled - no API keys configured")
+except ImportError:
+    langfuse_client = None
+    LANGFUSE_ENABLED = False
+    logger.info("Langfuse not installed - tracing disabled")
 
 
 # Comprehensive instructions for Claude Code
@@ -61,12 +81,24 @@ TOOLS:
 • capture_command: Record command patterns
 • get_memory_evolution: Trace solution evolution
 • generate_commands: Create memory-aware Claude commands
+• analyze_langfuse_traces: Analyze recent Langfuse traces
+• analyze_phase_transitions: Analyze GTD phase transitions
+• validate_state_continuity: Validate state continuity across traces
+• analyze_test_failure: Analyze test failures from traces
+• detect_interrupt_patterns: Detect interrupt patterns in traces
+• predict_trace_issues: Predict potential issues in traces
+• debug_langfuse_session: Debug a specific Langfuse session
+• monitor_active_traces: Monitor active traces in real-time
 
 RESOURCES:
 • memory://shared-knowledge: Overview of the shared knowledge graph
 • memory://gtd-context: Current GTD tasks and projects
 • memory://patterns: Captured coding patterns and solutions
-• memory://commands: Generated Claude Code commands"""
+• memory://commands: Generated Claude Code commands
+• langfuse://traces: Recent trace data from the last 24 hours
+• langfuse://patterns: Detected patterns from traces stored in Graphiti
+• langfuse://sessions: Active session information
+• langfuse://predictions: Current predictions and confidence scores"""
 
 # Initialize MCP server
 server = Server("graphiti-claude-code-mcp")
@@ -99,6 +131,31 @@ async def list_resources() -> List[Resource]:
             name="Generated Commands",
             description="Claude Code commands with memory",
             mimeType="text/markdown"
+        ),
+        # Langfuse trace analysis resources
+        Resource(
+            uri="langfuse://traces",
+            name="Recent Traces",
+            description="Recent Langfuse trace data from the last 24 hours",
+            mimeType="application/json"
+        ),
+        Resource(
+            uri="langfuse://patterns",
+            name="Detected Patterns",
+            description="Patterns detected from Langfuse traces stored in Graphiti",
+            mimeType="application/json"
+        ),
+        Resource(
+            uri="langfuse://sessions",
+            name="Active Sessions",
+            description="Active Langfuse session information",
+            mimeType="application/json"
+        ),
+        Resource(
+            uri="langfuse://predictions",
+            name="Trace Predictions",
+            description="Current predictions and confidence scores for trace issues",
+            mimeType="application/json"
         )
     ]
 
@@ -161,6 +218,82 @@ async def read_resource(uri: str) -> str:
         generator = await get_command_generator()
         index = await generator.generate_all_commands()
         return index
+    
+    # Langfuse trace analysis resources
+    elif uri == "langfuse://traces":
+        # Get recent traces from last 24 hours
+        analyzer = await get_langfuse_analyzer()
+        result = await analyzer.analyze_recent_traces(hours_back=24)
+        return json.dumps({
+            "traces_analyzed": result.get("traces_analyzed", 0),
+            "errors": result.get("errors", []),
+            "interrupts": result.get("interrupts", []),
+            "patterns": result.get("patterns", []),
+            "timestamp": datetime.now().isoformat()
+        }, indent=2)
+    
+    elif uri == "langfuse://patterns":
+        # Get patterns detected from Langfuse traces stored in Graphiti
+        memory = await get_shared_memory()
+        patterns = await memory.search_with_temporal_weight(
+            "langfuse pattern detected",
+            filter_source="claude_code"
+        )
+        return json.dumps({
+            "detected_patterns": [_format_memory(p) for p in patterns[:20]],
+            "total_patterns": len(patterns),
+            "timestamp": datetime.now().isoformat()
+        }, indent=2)
+    
+    elif uri == "langfuse://sessions":
+        # Get active session information
+        analyzer = await get_langfuse_analyzer()
+        # Get traces from last hour to find active sessions
+        result = await analyzer.analyze_recent_traces(hours_back=1)
+        sessions = {}
+        for trace in result.get("traces", []):
+            session_id = trace.get("session_id", "unknown")
+            if session_id not in sessions:
+                sessions[session_id] = {
+                    "trace_count": 0,
+                    "error_count": 0,
+                    "latest_timestamp": None
+                }
+            sessions[session_id]["trace_count"] += 1
+            if trace.get("has_errors"):
+                sessions[session_id]["error_count"] += 1
+            timestamp = trace.get("timestamp")
+            if timestamp and (not sessions[session_id]["latest_timestamp"] or 
+                             timestamp > sessions[session_id]["latest_timestamp"]):
+                sessions[session_id]["latest_timestamp"] = timestamp
+        
+        return json.dumps({
+            "active_sessions": sessions,
+            "total_sessions": len(sessions),
+            "timestamp": datetime.now().isoformat()
+        }, indent=2)
+    
+    elif uri == "langfuse://predictions":
+        # Get current predictions and confidence scores
+        analyzer = await get_langfuse_analyzer()
+        # Analyze recent traces for predictions
+        result = await analyzer.analyze_recent_traces(hours_back=1)
+        predictions = []
+        
+        for pattern in result.get("patterns", []):
+            if pattern.get("confidence", 0) > 0.5:
+                predictions.append({
+                    "pattern": pattern.get("signature"),
+                    "confidence": pattern.get("confidence"),
+                    "resolution": pattern.get("resolution"),
+                    "trace_id": pattern.get("trace_id")
+                })
+        
+        return json.dumps({
+            "predictions": sorted(predictions, key=lambda x: x["confidence"], reverse=True),
+            "high_confidence_count": len([p for p in predictions if p["confidence"] > 0.8]),
+            "timestamp": datetime.now().isoformat()
+        }, indent=2)
     
     else:
         raise ValueError(f"Unknown resource: {uri}")
@@ -275,6 +408,105 @@ async def list_tools() -> List[Tool]:
                 "type": "object",
                 "properties": {}
             }
+        ),
+        
+        # Langfuse Trace Analysis Tools
+        Tool(
+            name="analyze_langfuse_traces",
+            description="Analyze recent Langfuse traces and detect patterns",
+            inputSchema={
+                "type": "object",
+                "properties": {
+                    "hours_back": {"type": "integer", "description": "Hours to look back (default: 1)"},
+                    "session_id": {"type": "string", "description": "Optional specific session to analyze"},
+                    "project": {"type": "string", "description": "Optional project name for filtering"}
+                },
+                "required": []
+            }
+        ),
+        Tool(
+            name="analyze_phase_transitions",
+            description="Analyze phase transitions for state loss detection",
+            inputSchema={
+                "type": "object",
+                "properties": {
+                    "trace_id": {"type": "string", "description": "Specific trace to analyze"},
+                    "session_id": {"type": "string", "description": "Session to analyze all traces"}
+                },
+                "required": []
+            }
+        ),
+        Tool(
+            name="validate_state_continuity",
+            description="Validate state continuity across observations",
+            inputSchema={
+                "type": "object",
+                "properties": {
+                    "trace_id": {"type": "string", "description": "Specific trace to validate"},
+                    "session_id": {"type": "string", "description": "Session to validate all traces"}
+                },
+                "required": []
+            }
+        ),
+        Tool(
+            name="analyze_test_failure",
+            description="Analyze test failure session with AI-optimized output",
+            inputSchema={
+                "type": "object",
+                "properties": {
+                    "session_id": {"type": "string", "description": "Test session ID to analyze"},
+                    "return_patterns": {"type": "boolean", "description": "Whether to detect patterns (default: true)"}
+                },
+                "required": ["session_id"]
+            }
+        ),
+        Tool(
+            name="detect_interrupt_patterns",
+            description="Detect interrupt patterns in traces",
+            inputSchema={
+                "type": "object",
+                "properties": {
+                    "hours_back": {"type": "integer", "description": "Hours to look back (default: 1)"},
+                    "session_id": {"type": "string", "description": "Optional specific session"}
+                },
+                "required": []
+            }
+        ),
+        Tool(
+            name="predict_trace_issues",
+            description="Predict potential issues based on historical patterns",
+            inputSchema={
+                "type": "object",
+                "properties": {
+                    "trace_id": {"type": "string", "description": "Trace to analyze"},
+                    "threshold": {"type": "number", "description": "Confidence threshold (default: 0.7)"}
+                },
+                "required": ["trace_id"]
+            }
+        ),
+        Tool(
+            name="debug_langfuse_session",
+            description="Comprehensive debug mode for a session",
+            inputSchema={
+                "type": "object",
+                "properties": {
+                    "session_id": {"type": "string", "description": "Session ID to debug"},
+                    "focus": {"type": "string", "description": "Focus area: transitions, prompts, conversation, state, or all (default: all)"}
+                },
+                "required": ["session_id"]
+            }
+        ),
+        Tool(
+            name="monitor_active_traces",
+            description="Monitor active traces in real-time",
+            inputSchema={
+                "type": "object",
+                "properties": {
+                    "project": {"type": "string", "description": "Optional project to monitor"},
+                    "interval_seconds": {"type": "integer", "description": "Monitoring interval (default: 30)"}
+                },
+                "required": []
+            }
         )
     ]
 
@@ -282,148 +514,375 @@ async def list_tools() -> List[Tool]:
 @server.call_tool()
 async def call_tool(name: str, arguments: Dict[str, Any]) -> Any:
     """Execute a memory tool"""
-    memory = await get_shared_memory()
-    capture = await get_pattern_capture()
+    # Initialize trace context
+    trace = None
+    span = None
     
-    if name == "capture_solution":
-        # Capture deployment/coding solution
-        memory_id = await capture.capture_deployment_solution(
-            error=arguments["error"],
-            solution=arguments["solution"],
-            context=arguments.get("context", {})
-        )
-        
-        # Link to GTD if provided
-        if arguments.get("gtd_task_id"):
-            await memory.link_to_gtd_task(memory_id, arguments["gtd_task_id"])
-        
-        return {
-            "status": "success",
-            "memory_id": memory_id,
-            "message": f"Captured solution: {memory_id}"
-        }
-    
-    elif name == "capture_tdd_pattern":
-        # Capture TDD pattern
-        memory_id = await capture.capture_tdd_cycle(
-            test_code=arguments["test_code"],
-            implementation=arguments.get("implementation"),
-            refactored=arguments.get("refactored"),
-            feature_name=arguments["feature_name"]
-        )
-        
-        return {
-            "status": "success",
-            "memory_id": memory_id,
-            "message": f"Captured TDD pattern for {arguments['feature_name']}"
-        }
-    
-    elif name == "search_memory":
-        # Search shared knowledge
-        results = await memory.search_with_temporal_weight(
-            query=arguments["query"],
-            include_historical=arguments.get("include_historical", False),
-            filter_source=arguments.get("filter_source")
-        )
-        
-        return {
-            "status": "success",
-            "count": len(results),
-            "results": [_format_memory(r) for r in results]
-        }
-    
-    elif name == "find_cross_insights":
-        # Find cross-domain insights
-        insights = await memory.find_cross_domain_insights(arguments["topic"])
-        
-        return {
-            "status": "success",
-            "insights": insights,
-            "message": f"Found {len(insights)} cross-domain insights"
-        }
-    
-    elif name == "get_gtd_context":
-        # Get GTD context
-        tasks = await memory.search_with_temporal_weight(
-            "computer task active",
-            filter_source="gtd_coach"
-        )
-        projects = await memory.search_with_temporal_weight(
-            "project active",
-            filter_source="gtd_coach"
-        )
-        reviews = await memory.search_with_temporal_weight(
-            "review insight",
-            filter_source="gtd_coach"
-        )
-        
-        return {
-            "status": "success",
-            "context": {
-                "active_tasks": [_format_memory(t) for t in tasks[:5]],
-                "active_projects": [_format_memory(p) for p in projects[:3]],
-                "recent_insights": [_format_memory(r) for r in reviews[:3]]
+    # Tag this operation as MCP-internal if Langfuse is enabled
+    if LANGFUSE_ENABLED and langfuse_client:
+        # Create a trace with MCP tags to prevent analysis loops
+        trace = langfuse_client.trace(
+            name=f"mcp_tool_{name}",
+            tags=[
+                os.getenv("MCP_TRACE_TAG", "mcp-internal"),
+                os.getenv("MCP_ANALYZER_TAG", "mcp-analyzer"),
+                f"tool:{name}"
+            ],
+            metadata={
+                "source": os.getenv("MCP_SOURCE_IDENTIFIER", "mcp-server"),
+                "component": "tool-handler",
+                "tool": name,
+                "version": os.getenv("MCP_COMPONENT_VERSION", "1.0.0"),
+                "arguments": arguments  # Include arguments for debugging
             }
-        }
+        )
+        
+        # Start a span for the specific tool execution
+        span = trace.span(
+            name=f"execute_{name}",
+            metadata={"tool": name}
+        )
     
-    elif name == "supersede_memory":
-        # Supersede old memory
-        new_id = await memory.supersede_memory(
+    try:
+        memory = await get_shared_memory()
+        capture = await get_pattern_capture()
+        
+        result = None
+        
+        # Create sub-spans for Graphiti operations if tracing is enabled
+        if name == "capture_solution":
+            # Create sub-span for Graphiti operation
+            if span:
+                graphiti_span = trace.span(
+                    name="graphiti_capture_solution",
+                    metadata={"error": arguments["error"][:100] if "error" in arguments else None}
+                )
+            
+            # Capture deployment/coding solution
+            memory_id = await capture.capture_deployment_solution(
+                error=arguments["error"],
+                solution=arguments["solution"],
+                context=arguments.get("context", {})
+            )
+            
+            # Link to GTD if provided
+            if arguments.get("gtd_task_id"):
+                await memory.link_to_gtd_task(memory_id, arguments["gtd_task_id"])
+            
+            if span:
+                graphiti_span.end()
+            
+            result = {
+                "status": "success",
+                "memory_id": memory_id,
+                "message": f"Captured solution: {memory_id}"
+            }
+        
+        elif name == "capture_tdd_pattern":
+            # Create sub-span for Graphiti operation
+            if span:
+                graphiti_span = trace.span(
+                    name="graphiti_capture_tdd",
+                    metadata={"feature": arguments["feature_name"]}
+                )
+            
+            # Capture TDD pattern
+            memory_id = await capture.capture_tdd_cycle(
+                test_code=arguments["test_code"],
+                implementation=arguments.get("implementation"),
+                refactored=arguments.get("refactored"),
+                feature_name=arguments["feature_name"]
+            )
+            
+            if span:
+                graphiti_span.end()
+            
+            result = {
+                "status": "success",
+                "memory_id": memory_id,
+                "message": f"Captured TDD pattern for {arguments['feature_name']}"
+            }
+        
+        elif name == "search_memory":
+            # Create sub-span for Graphiti operation
+            if span:
+                graphiti_span = trace.span(
+                    name="graphiti_search",
+                    metadata={"query": arguments["query"]}
+                )
+            
+            # Search shared knowledge
+            results = await memory.search_with_temporal_weight(
+                query=arguments["query"],
+                include_historical=arguments.get("include_historical", False),
+                filter_source=arguments.get("filter_source")
+            )
+            
+            if span:
+                graphiti_span.update(metadata={"results_count": len(results)})
+                graphiti_span.end()
+            
+            result = {
+                "status": "success",
+                "count": len(results),
+                "results": [_format_memory(r) for r in results]
+            }
+        
+        elif name == "find_cross_insights":
+            # Create sub-span for Graphiti operation
+            if span:
+                graphiti_span = trace.span(
+                    name="graphiti_cross_insights",
+                    metadata={"topic": arguments["topic"]}
+                )
+            
+            # Find cross-domain insights
+            insights = await memory.find_cross_domain_insights(arguments["topic"])
+            
+            if span:
+                graphiti_span.update(metadata={"insights_count": len(insights)})
+                graphiti_span.end()
+            
+            result = {
+                "status": "success",
+                "insights": insights,
+                "message": f"Found {len(insights)} cross-domain insights"
+            }
+        
+        elif name == "get_gtd_context":
+            # Create sub-span for Graphiti operation
+            if span:
+                graphiti_span = trace.span(
+                    name="graphiti_gtd_context",
+                    metadata={"operation": "multi_search"}
+                )
+            
+            # Get GTD context with multiple searches
+            tasks = await memory.search_with_temporal_weight(
+                "computer task active",
+                filter_source="gtd_coach"
+            )
+            projects = await memory.search_with_temporal_weight(
+                "project active",
+                filter_source="gtd_coach"
+            )
+            reviews = await memory.search_with_temporal_weight(
+                "review insight",
+                filter_source="gtd_coach"
+            )
+            
+            if span:
+                graphiti_span.update(metadata={
+                    "tasks_count": len(tasks),
+                    "projects_count": len(projects),
+                    "reviews_count": len(reviews)
+                })
+                graphiti_span.end()
+            
+            result = {
+                "status": "success",
+                "context": {
+                    "active_tasks": [_format_memory(t) for t in tasks[:5]],
+                    "active_projects": [_format_memory(p) for p in projects[:3]],
+                    "recent_insights": [_format_memory(r) for r in reviews[:3]]
+                }
+            }
+        
+        elif name == "supersede_memory":
+            # Create sub-span for Graphiti operation
+            if span:
+                graphiti_span = trace.span(
+                    name="graphiti_supersede",
+                    metadata={"old_id": arguments["old_id"], "reason": arguments["reason"]}
+                )
+            
+            # Supersede old memory
+            new_id = await memory.supersede_memory(
             old_id=arguments["old_id"],
             new_content=arguments["new_content"],
             reason=arguments["reason"]
         )
+            
+            if span:
+                graphiti_span.end()
         
-        return {
-            "status": "success",
-            "new_id": new_id,
-            "message": f"Superseded {arguments['old_id']} with {new_id}"
-        }
-    
-    elif name == "capture_command":
-        # Capture command pattern
-        memory_id = await capture.capture_command_pattern(
+            result = {
+                "status": "success",
+                "new_id": new_id,
+                "message": f"Superseded {arguments['old_id']} with {new_id}"
+            }
+        
+        elif name == "capture_command":
+            # Create sub-span for Graphiti operation
+            if span:
+                graphiti_span = trace.span(
+                    name="graphiti_capture_command",
+                    metadata={"command": arguments["command"], "context": arguments["context"]}
+                )
+            
+            # Capture command pattern
+            memory_id = await capture.capture_command_pattern(
             command=arguments["command"],
             context=arguments["context"],
             success=arguments["success"],
             output=arguments.get("output")
         )
+            
+            if span:
+                graphiti_span.end()
         
-        return {
+            result = {
+                "status": "success",
+                "memory_id": memory_id,
+                "message": f"Captured command pattern: {memory_id}"
+            }
+        
+        elif name == "get_memory_evolution":
+            # Create sub-span for Graphiti operation
+            if span:
+                graphiti_span = trace.span(
+                    name="graphiti_evolution",
+                    metadata={"topic": arguments["topic"]}
+                )
+            
+            # Get evolution history
+            evolution = await memory.get_memory_evolution(arguments["topic"])
+            
+            if span:
+                graphiti_span.update(metadata={"chains_count": len(evolution)})
+                graphiti_span.end()
+        
+            result = {
+                "status": "success",
+                "evolution": evolution,
+                "chains": len(evolution)
+            }
+        
+        elif name == "generate_commands":
+            # Create sub-span for Graphiti operation
+            if span:
+                graphiti_span = trace.span(
+                    name="graphiti_generate_commands",
+                    metadata={"operation": "command_generation"}
+                )
+            
+            # Generate Claude commands
+            generator = await get_command_generator()
+            await generator.generate_all_commands()
+            
+            if span:
+                graphiti_span.end()
+        
+            result = {
+                "status": "success",
+                "message": f"Generated commands in ~/.claude/commands/",
+                "commands": [
+                    "/tdd-feature",
+                    "/check-deployment",
+                    "/fix-docker",
+                    "/project-structure",
+                    "/search-memory"
+                ]
+            }
+        
+        # Langfuse Trace Analysis Tools
+        elif name == "analyze_langfuse_traces":
+            analyzer = await get_langfuse_analyzer()
+            result = await analyzer.analyze_recent_traces(
+            hours_back=arguments.get("hours_back", 1),
+            session_id=arguments.get("session_id"),
+            project=arguments.get("project")
+        )
+        
+        elif name == "analyze_phase_transitions":
+            analyzer = await get_langfuse_analyzer()
+            result = await analyzer.analyze_phase_transitions(
+            trace_id=arguments.get("trace_id"),
+            session_id=arguments.get("session_id")
+        )
+        
+        elif name == "validate_state_continuity":
+            analyzer = await get_langfuse_analyzer()
+            result = await analyzer.validate_state_continuity(
+            trace_id=arguments.get("trace_id"),
+            session_id=arguments.get("session_id")
+        )
+        
+        elif name == "analyze_test_failure":
+            analyzer = await get_langfuse_analyzer()
+            result = await analyzer.analyze_test_failure(
+            session_id=arguments["session_id"],
+            return_patterns=arguments.get("return_patterns", True)
+        )
+        
+        elif name == "detect_interrupt_patterns":
+            analyzer = await get_langfuse_analyzer()
+            result = await analyzer.detect_interrupt_patterns(
+            hours_back=arguments.get("hours_back", 1),
+            session_id=arguments.get("session_id")
+        )
+        
+        elif name == "predict_trace_issues":
+            analyzer = await get_langfuse_analyzer()
+            result = await analyzer.predict_trace_issues(
+            trace_id=arguments["trace_id"],
+            threshold=arguments.get("threshold", 0.7)
+        )
+        
+        elif name == "debug_langfuse_session":
+            analyzer = await get_langfuse_analyzer()
+            # Call the original debug_session function if available
+            try:
+                from analyze_langfuse_traces import debug_session
+                # Run in executor since it's sync
+                loop = asyncio.get_event_loop()
+                result = await loop.run_in_executor(
+                None,
+                debug_session,
+                arguments["session_id"],
+                arguments.get("focus", "all")
+            )
+            except ImportError:
+                result = {
+                    "status": "error",
+                    "message": "debug_session not available - analyze_langfuse_traces module not found"
+                }
+        
+        elif name == "monitor_active_traces":
+            # Simple monitoring status for now
+            analyzer = await get_langfuse_analyzer()
+            result = {
             "status": "success",
-            "memory_id": memory_id,
-            "message": f"Captured command pattern: {memory_id}"
+            "message": "Real-time monitoring would check traces every {} seconds".format(
+                arguments.get("interval_seconds", 30)
+            ),
+            "project": arguments.get("project", "all"),
+            "note": "Full real-time monitoring requires a background task"
         }
     
-    elif name == "get_memory_evolution":
-        # Get evolution history
-        evolution = await memory.get_memory_evolution(arguments["topic"])
+        else:
+            raise ValueError(f"Unknown tool: {name}")
         
-        return {
-            "status": "success",
-            "evolution": evolution,
-            "chains": len(evolution)
-        }
-    
-    elif name == "generate_commands":
-        # Generate Claude commands
-        generator = await get_command_generator()
-        await generator.generate_all_commands()
+        # Return the result
+        return result
         
-        return {
-            "status": "success",
-            "message": f"Generated commands in ~/.claude/commands/",
-            "commands": [
-                "/tdd-feature",
-                "/check-deployment",
-                "/fix-docker",
-                "/project-structure",
-                "/search-memory"
-            ]
-        }
-    
-    else:
-        raise ValueError(f"Unknown tool: {name}")
+    except Exception as e:
+        # Log error to trace if enabled
+        if span:
+            span.update(
+                level="ERROR",
+                status_message=str(e)
+            )
+        raise
+    finally:
+        # Always close the span if it was created
+        if span:
+            span.end()
+        # Update the trace with final status
+        if trace:
+            trace.update(
+                output={"status": "completed", "tool": name}
+            )
 
 
 def _format_memory(memory: Any) -> Dict[str, Any]:

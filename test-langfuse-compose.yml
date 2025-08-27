@@ -1,0 +1,20 @@
+version: '3.8'
+
+services:
+  langfuse-test:
+    image: python:3.11-slim
+    container_name: langfuse-sdk-test
+    networks:
+      - langfuse_default
+    environment:
+      - LANGFUSE_PUBLIC_KEY=pk-lf-00689068-a85f-41a1-8e1e-37619595b0ed
+      - LANGFUSE_SECRET_KEY=sk-lf-14e07bbb-ee5f-45a1-abd8-b63d21f95bb9
+      - LANGFUSE_HOST=http://langfuse-langfuse-web-1:3000
+    volumes:
+      - ./test_langfuse_sdk.py:/app/test_langfuse_sdk.py
+    working_dir: /app
+    command: sh -c "pip install --quiet langfuse httpx && python test_langfuse_sdk.py"
+
+networks:
+  langfuse_default:
+    external: true
