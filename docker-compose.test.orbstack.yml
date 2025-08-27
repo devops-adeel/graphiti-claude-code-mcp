@@ -1,0 +1,44 @@
+services:
+  # Test FalkorDB without problematic ARGS
+  test-falkordb:
+    image: falkordb/falkordb:latest
+    platform: linux/arm64
+    container_name: test-falkordb-orbstack
+    ports:
+      - "6380:6379"
+    environment:
+      # No FALKORDB_ARGS or REDIS_ARGS to avoid connection issues
+      - FALKORDB_DATABASE=test_graphiti
+    networks:
+      - test-network
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 3s
+      retries: 3
+
+  # Graphiti MCP Server
+  graphiti-mcp:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: graphiti-mcp-test
+    environment:
+      - OP_SERVICE_ACCOUNT_TOKEN=${OP_SERVICE_ACCOUNT_TOKEN}
+      - GRAPHITI_GROUP_ID=test_shared_knowledge
+      - FALKORDB_HOST=test-falkordb-orbstack
+      - FALKORDB_PORT=6379
+      - FALKORDB_DATABASE=test_graphiti
+      - LOG_LEVEL=DEBUG
+    volumes:
+      - ~/.config/graphiti-mcp/service-token:/service-token:ro
+    networks:
+      - test-network
+    depends_on:
+      test-falkordb:
+        condition: service_healthy
+    command: bash -c ". /service-token && python mcp_server.py"
+
+networks:
+  test-network:
+    driver: bridge
