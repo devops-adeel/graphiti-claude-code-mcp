@@ -142,7 +142,7 @@ health-check: ## Run memory pipeline health check
 	@python3 scripts/health_check_memory.py
 
 .PHONY: health-check-verbose
-health-check-verbose: ## Run detailed health check with queries  
+health-check-verbose: ## Run detailed health check with queries
 	@echo "$(BLUE)Running detailed health check...$(NC)"
 	@python3 scripts/health_check_memory.py --verbose
 

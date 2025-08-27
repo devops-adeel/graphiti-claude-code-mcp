@@ -182,7 +182,7 @@ When memories aren't captured or retrieved as expected, run the health check fir
 # Basic check - shows pass/fail for each stage
 make health-check
 
-# Verbose mode - shows FalkorDB queries and internal operations  
+# Verbose mode - shows FalkorDB queries and internal operations
 make health-check-verbose
 
 # Get fix suggestions for failures

@@ -7,9 +7,11 @@ services:
     networks:
       - langfuse_default
     environment:
-      - LANGFUSE_PUBLIC_KEY=pk-lf-00689068-a85f-41a1-8e1e-37619595b0ed
-      - LANGFUSE_SECRET_KEY=sk-lf-14e07bbb-ee5f-45a1-abd8-b63d21f95bb9
-      - LANGFUSE_HOST=http://langfuse-langfuse-web-1:3000
+      # Use environment variables from host or .env file
+      # Never hardcode credentials directly
+      - LANGFUSE_PUBLIC_KEY=${LANGFUSE_PUBLIC_KEY:-pk-lf-test-00000000-0000-0000-0000-000000000000}
+      - LANGFUSE_SECRET_KEY=${LANGFUSE_SECRET_KEY:-sk-lf-test-00000000-0000-0000-0000-000000000000}
+      - LANGFUSE_HOST=${LANGFUSE_HOST:-http://langfuse-langfuse-web-1:3000}
     volumes:
       - ./test_langfuse_sdk.py:/app/test_langfuse_sdk.py
     working_dir: /app

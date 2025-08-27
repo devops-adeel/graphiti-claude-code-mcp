@@ -8,7 +8,7 @@ This memory layer extends Graphiti v0.17.9 with temporal management, cross-domai
 ### 1. Episode Immutability
 **Decision**: Never modify existing episodes; create new ones for updates.
 
-**Rationale**: 
+**Rationale**:
 - Graphiti episodes are immutable once created
 - Preserves complete audit trail
 - Enables temporal analysis of knowledge evolution

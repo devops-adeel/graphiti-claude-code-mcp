@@ -25,7 +25,7 @@ async def test_capture_solution():
         memory_id = await capture.capture_deployment_solution(
             error="Docker container fails to start",
             solution="Fix port mapping in docker-compose.yml",
-            context={"environment": "production", "service": "api"}
+            context={"environment": "production", "service": "api"},
         )
         print(f"   ✅ Success: Created memory {memory_id}")
         return True
@@ -42,7 +42,7 @@ async def test_capture_tdd_pattern():
         memory_id = await capture.capture_tdd_cycle(
             test_code="def test_add(): assert add(2, 3) == 5",
             implementation="def add(a, b): return a + b",
-            feature_name="addition_function"
+            feature_name="addition_function",
         )
         print(f"   ✅ Success: Created TDD pattern {memory_id}")
         return True
@@ -57,17 +57,15 @@ async def test_search_memory():
     try:
         memory = await get_shared_memory()
         results = await memory.search_with_temporal_weight(
-            query="docker error",
-            include_historical=False,
-            filter_source="claude_code"
+            query="docker error", include_historical=False, filter_source="claude_code"
         )
         print(f"   ✅ Success: Found {len(results)} results")
-        
+
         # Test that results can be formatted without errors
         for r in results[:2]:
             # Check if we can access expected fields
-            score = getattr(r, 'final_score', getattr(r, 'score', 0))
-            status = getattr(r, 'status', 'unknown')
+            score = getattr(r, "final_score", getattr(r, "score", 0))
+            status = getattr(r, "status", "unknown")
             print(f"      - Score: {score}, Status: {status}")
         return True
     except Exception as e:
@@ -93,23 +91,20 @@ async def test_get_gtd_context():
     print("\n5. Testing get_gtd_context...")
     try:
         memory = await get_shared_memory()
-        
+
         # Get GTD context
         tasks = await memory.search_with_temporal_weight(
-            "computer task active",
-            filter_source="gtd_coach"
+            "computer task active", filter_source="gtd_coach"
         )
         projects = await memory.search_with_temporal_weight(
-            "project active",
-            filter_source="gtd_coach"
+            "project active", filter_source="gtd_coach"
         )
-        
-        context = {
-            "active_tasks": len(tasks),
-            "active_projects": len(projects)
-        }
-        
-        print(f"   ✅ Success: Got GTD context (tasks: {context['active_tasks']}, projects: {context['active_projects']})")
+
+        context = {"active_tasks": len(tasks), "active_projects": len(projects)}
+
+        print(
+            f"   ✅ Success: Got GTD context (tasks: {context['active_tasks']}, projects: {context['active_projects']})"
+        )
         return True
     except Exception as e:
         print(f"   ❌ Failed: {e}")
@@ -121,20 +116,19 @@ async def test_supersede_memory():
     print("\n6. Testing supersede_memory...")
     try:
         memory = await get_shared_memory()
-        
+
         # First create a memory to supersede
         old_id = await memory.add_memory(
-            {"title": "Old solution", "content": "Old approach"},
-            source="test"
+            {"title": "Old solution", "content": "Old approach"}, source="test"
         )
-        
+
         # Now supersede it
         new_id = await memory.supersede_memory(
             old_id=old_id,
             new_content={"title": "New solution", "content": "Better approach"},
-            reason="Found better solution"
+            reason="Found better solution",
         )
-        
+
         print(f"   ✅ Success: Superseded {old_id} with {new_id}")
         return True
     except Exception as e:
@@ -151,7 +145,7 @@ async def test_capture_command():
             command="docker-compose up -d",
             context="deployment",
             success=True,
-            output="Services started successfully"
+            output="Services started successfully",
         )
         print(f"   ✅ Success: Captured command pattern {memory_id}")
         return True
@@ -191,23 +185,25 @@ async def main():
     print("=" * 60)
     print("Testing Graphiti MCP Tools")
     print("=" * 60)
-    
+
     # Load environment - only .env.graphiti for FalkorDB settings
     from dotenv import load_dotenv
     from pathlib import Path
+
     load_dotenv(".env.graphiti")
-    
+
     # Only load OpenAI key from home .env
-    home_env = Path.home() / '.env'
+    home_env = Path.home() / ".env"
     if home_env.exists():
         import os
+
         with open(home_env) as f:
             for line in f:
-                if 'OPENAI_API_KEY' in line and '=' in line:
-                    key, value = line.strip().split('=', 1)
-                    os.environ['OPENAI_API_KEY'] = value
+                if "OPENAI_API_KEY" in line and "=" in line:
+                    key, value = line.strip().split("=", 1)
+                    os.environ["OPENAI_API_KEY"] = value
                     break
-    
+
     # Run tests
     results = []
     results.append(await test_capture_solution())
@@ -219,22 +215,22 @@ async def main():
     results.append(await test_capture_command())
     results.append(await test_get_memory_evolution())
     results.append(await test_generate_commands())
-    
+
     # Summary
     print("\n" + "=" * 60)
     print("Test Summary")
     print("=" * 60)
-    
+
     passed = sum(results)
     total = len(results)
-    
+
     print(f"Passed: {passed}/{total}")
-    
+
     if passed == total:
         print("✅ All tests passed!")
     else:
         print(f"❌ {total - passed} tests failed")
-        
+
     return passed == total
 
 

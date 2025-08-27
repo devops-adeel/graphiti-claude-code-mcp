@@ -84,7 +84,7 @@ wait_for_service() {
     local port=$2
     local max_attempts=30
     local attempt=0
-    
+
     echo -n "Waiting for $service on port $port..."
     while [ $attempt -lt $max_attempts ]; do
         if check_service $service $port; then
@@ -135,7 +135,7 @@ if check_service "FalkorDB" 6379 || check_service "FalkorDB" 6380; then
 else
     echo -e "${YELLOW}⚠${NC} FalkorDB is not running"
     echo "  Starting FalkorDB..."
-    
+
     # Try to start FalkorDB using the project's docker-compose
     if [ -f "$PROJECT_ROOT/../falkordb/docker-compose.yml" ]; then
         docker compose -f "$PROJECT_ROOT/../falkordb/docker-compose.yml" up -d
@@ -154,7 +154,7 @@ if [ "$RUN_INTEGRATION" = true ]; then
         LANGFUSE_RUNNING=true
     else
         echo -e "${YELLOW}⚠${NC} Langfuse is not running"
-        
+
         # Start Langfuse using test docker-compose if it exists
         if [ -f "test-langfuse-compose.yml" ]; then
             echo "  Starting Langfuse test instance..."
@@ -242,7 +242,7 @@ if [ "$TEST_FAILED" = true ]; then
 else
     echo -e "${GREEN}ALL TESTS PASSED${NC}"
     echo "========================================="
-    
+
     # Provide next steps
     echo -e "\n${BLUE}Next Steps:${NC}"
     echo "1. Run with real services:"
@@ -256,6 +256,6 @@ else
     echo ""
     echo "4. Generate coverage report:"
     echo "   $PYTHON -m pytest tests/test_langfuse*.py --cov=. --cov-report=html"
-    
+
     exit 0
 fi

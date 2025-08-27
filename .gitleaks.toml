@@ -1,0 +1,113 @@
+# Gitleaks configuration for Graphiti Claude Code MCP
+# Custom rules for detecting secrets specific to this project
+
+title = "Graphiti Claude Code MCP Gitleaks Configuration"
+
+# Extend the base configuration
+[extend]
+useDefault = true
+
+# Custom rules for project-specific secrets
+[[rules]]
+id = "langfuse-public-key"
+description = "Langfuse Public API Key"
+regex = '''pk-lf-[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}'''
+tags = ["secret", "langfuse", "api-key"]
+keywords = ["pk-lf", "langfuse", "public"]
+
+[rules.allowlist]
+description = "Allow test/mock Langfuse public keys"
+regexes = [
+    '''pk-lf-test-[0-9]{8}-[0-9]{4}-[0-9]{4}-[0-9]{4}-[0-9]{12}''',
+    '''PLACEHOLDER_REPLACE_WITH_ACTUAL''',
+    '''YOUR_ACTUAL_PUBLIC_KEY'''
+]
+
+[[rules]]
+id = "langfuse-secret-key"
+description = "Langfuse Secret API Key"
+regex = '''sk-lf-[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}'''
+tags = ["secret", "langfuse", "api-key", "high-severity"]
+keywords = ["sk-lf", "langfuse", "secret"]
+
+[rules.allowlist]
+description = "Allow test/mock Langfuse secret keys"
+regexes = [
+    '''sk-lf-test-[0-9]{8}-[0-9]{4}-[0-9]{4}-[0-9]{4}-[0-9]{12}''',
+    '''PLACEHOLDER_REPLACE_WITH_ACTUAL''',
+    '''YOUR_ACTUAL_SECRET_KEY'''
+]
+
+[[rules]]
+id = "openai-api-key"
+description = "OpenAI API Key"
+regex = '''sk-[a-zA-Z0-9]{20,}'''
+tags = ["secret", "openai", "api-key", "high-severity"]
+keywords = ["sk-", "openai"]
+
+[rules.allowlist]
+description = "Allow OpenAI test keys and placeholders"
+regexes = [
+    '''sk-proj-test''',
+    '''sk-test''',
+    '''YOUR_ACTUAL_OPENAI_KEY'''
+]
+
+[[rules]]
+id = "falkordb-credentials"
+description = "FalkorDB Connection Strings or Passwords"
+regex = '''redis://[^:]+:[^@]+@[^/]+'''
+tags = ["secret", "database", "redis", "falkordb"]
+
+[[rules]]
+id = "1password-service-token"
+description = "1Password Service Account Token"
+regex = '''OP_SERVICE_ACCOUNT_TOKEN=['"]?[A-Za-z0-9\-_]{40,}['"]?'''
+tags = ["secret", "1password", "service-account", "high-severity"]
+
+[[rules]]
+id = "1password-vault-reference"
+description = "Check for hardcoded vault IDs that should be references"
+regex = '''op://HomeLab/[a-z0-9]{26}/'''
+tags = ["configuration", "1password"]
+[rules.allowlist]
+description = "This is actually the correct way to reference 1Password items"
+regexes = [
+    '''op://HomeLab/[a-z0-9]{26}/[a-z\-]+'''
+]
+
+# Global allowlist for files that are expected to contain example secrets
+[allowlist]
+description = "Global allowlist"
+paths = [
+    '''\.env\.example''',
+    '''\.env\.sample''',
+    '''secrets/\.env\.1password''',  # This file only contains references, not actual secrets
+    '''docs/.*\.md''',  # Documentation can contain example secrets
+    '''README\.md'''
+]
+
+# Additional paths to ignore
+commits = [
+    # You can add specific commit SHAs here to ignore historical commits
+    # But this doesn't help with already exposed secrets
+]
+
+# File patterns to scan
+[scan]
+paths = [
+    "*.py",
+    "*.sh",
+    "*.yml",
+    "*.yaml",
+    "*.json",
+    "*.env*",
+    "Dockerfile*",
+    "docker-compose*",
+    "Makefile"
+]
+
+# Performance settings
+[performance]
+maxTargetMegabytes = 100  # Don't scan files larger than 100MB
+maxFileSizeKB = 500  # Skip individual files larger than 500KB

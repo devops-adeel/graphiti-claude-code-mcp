@@ -33,18 +33,27 @@ if op item get "Langfuse/Integration" --vault=HomeLab &>/dev/null; then
     echo "   Item ID: $LANGFUSE_ID"
 else
     echo "Creating Langfuse/Integration item..."
+    echo -e "${YELLOW}⚠️  You will need to manually add your Langfuse credentials to this item${NC}"
+    echo ""
     LANGFUSE_ID=$(op item create \
         --category=PASSWORD \
         --title="Langfuse/Integration" \
         --vault=HomeLab \
-        'langfuse-public-key[text]=pk-lf-00689068-a85f-41a1-8e1e-37619595b0ed' \
-        'langfuse-secret-key[password]=sk-lf-14e07bbb-ee5f-45a1-abd8-b63d21f95bb9' \
+        'langfuse-public-key[text]=PLACEHOLDER_REPLACE_WITH_ACTUAL_KEY' \
+        'langfuse-secret-key[password]=PLACEHOLDER_REPLACE_WITH_ACTUAL_SECRET' \
         'langfuse-host[text]=https://langfuse.local' \
-        'notes[text]=Langfuse observability platform credentials for MCP Server and trace analysis' \
+        'notes[text]=Langfuse observability platform credentials for MCP Server and trace analysis. IMPORTANT: Replace placeholder values with actual credentials from your Langfuse instance.' \
         --format=json | jq -r '.id')
-    
+
+    echo -e "${YELLOW}⚠️  IMPORTANT: The Langfuse item was created with placeholder values!${NC}"
+    echo "   Please update it with actual credentials:"
+    echo "   1. Get your keys from Langfuse (Project → Settings)"
+    echo "   2. Run: op item edit \"$LANGFUSE_ID\" --vault=HomeLab \\"
+    echo "      'langfuse-public-key[text]=YOUR_ACTUAL_PUBLIC_KEY' \\"
+    echo "      'langfuse-secret-key[password]=YOUR_ACTUAL_SECRET_KEY'"
+
     echo -e "${GREEN}✅ Created Langfuse/Integration with ID: $LANGFUSE_ID${NC}"
-    
+
     # Update .env.1password with actual ID
     if [ -f "secrets/.env.1password" ]; then
         sed -i '' "s|Langfuse-Integration|$LANGFUSE_ID|g" secrets/.env.1password
@@ -61,7 +70,7 @@ SERVICE_TOKEN_FILE="$HOME/.config/graphiti-mcp/service-token"
 if [ -f "$SERVICE_TOKEN_FILE" ]; then
     echo -e "${GREEN}✅ Service Account token already exists${NC}"
     echo "   Location: $SERVICE_TOKEN_FILE"
-    
+
     # Verify token works
     source "$SERVICE_TOKEN_FILE"
     if op inject -i secrets/.env.1password >/dev/null 2>&1; then
@@ -74,13 +83,13 @@ else
     echo -e "${RED}⚠️  IMPORTANT: The token will only be shown ONCE!${NC}"
     echo ""
     read -p "Press Enter to continue or Ctrl+C to cancel..."
-    
+
     # Create service account (max 90 days)
     TOKEN=$(op service-account create "Graphiti MCP Server" \
         --vault HomeLab:read_items \
         --expires-in 90d \
         --format json | jq -r '.token')
-    
+
     # Store token securely
     mkdir -p "$HOME/.config/graphiti-mcp"
     cat > "$SERVICE_TOKEN_FILE" << EOF
@@ -91,7 +100,7 @@ else
 
 export OP_SERVICE_ACCOUNT_TOKEN='$TOKEN'
 EOF
-    
+
     chmod 600 "$SERVICE_TOKEN_FILE"
     echo -e "${GREEN}✅ Service Account created and token stored${NC}"
     echo "   Location: $SERVICE_TOKEN_FILE"
@@ -111,7 +120,7 @@ if [ -f "$CONFIG_FILE" ]; then
         echo -e "${RED}❌ GRAPHITI_GROUP_ID is not 'shared_knowledge'${NC}"
         echo "   Fix with: make fix-config"
     fi
-    
+
     # Check FALKORDB_DATABASE
     if grep -q "FALKORDB_DATABASE=shared_gtd_knowledge" "$CONFIG_FILE"; then
         echo -e "${GREEN}✅ FALKORDB_DATABASE correctly set to 'shared_gtd_knowledge'${NC}"
@@ -134,7 +143,7 @@ source "$SERVICE_TOKEN_FILE" 2>/dev/null
 # Test secret injection
 if op inject -i secrets/.env.1password >/dev/null 2>&1; then
     echo -e "${GREEN}✅ All secrets accessible via Service Account${NC}"
-    
+
     # Show what secrets will be available
     echo ""
     echo "Available secrets:"

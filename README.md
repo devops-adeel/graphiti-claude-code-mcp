@@ -385,6 +385,50 @@ python scripts/health_check_memory.py --fix
 
 For detailed troubleshooting, see `docs/TROUBLESHOOTING.md`
 
+## Security 🔒
+
+### Security Best Practices
+
+This project implements multiple layers of security to protect sensitive information:
+
+#### 🛡️ Secret Management
+- **1Password Integration**: All secrets stored securely in 1Password vault
+- **Environment Variables**: Credentials injected at runtime, never hardcoded
+- **Placeholder Values**: Setup scripts use placeholders, not real credentials
+
+#### 🔍 Secret Detection
+- **Pre-commit Hooks**: TruffleHog and Gitleaks scan before every commit
+- **GitHub Actions**: Continuous scanning in CI/CD pipeline
+- **Custom Rules**: Project-specific patterns in `.gitleaks.toml`
+
+#### 📋 Quick Security Setup
+
+```bash
+# 1. Install pre-commit hooks (REQUIRED)
+pip install pre-commit
+pre-commit install
+
+# 2. Test secret scanning
+pre-commit run --all-files
+
+# 3. Set up 1Password (for production use)
+make setup-1password
+```
+
+#### ⚠️ Security Reminders
+- **NEVER** hardcode credentials, even for testing
+- **ALWAYS** use mock credentials in test files
+- **ROTATE** credentials every 90 days
+- **REVIEW** [SECURITY.md](SECURITY.md) for incident response
+
+#### 🚨 If You Find a Security Issue
+1. **Do NOT** create a public issue
+2. Rotate affected credentials immediately
+3. Follow the [Security Incident Response](SECURITY.md#security-incident-response) guide
+4. Use GitHub's Security Advisory feature for reporting
+
+For complete security documentation, see [SECURITY.md](SECURITY.md)
+
 ## Contributing
 
 1. Use TDD methodology - write tests first

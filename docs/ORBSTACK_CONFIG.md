@@ -158,7 +158,7 @@ If containers can't connect to FalkorDB:
 If the MCP server appears unresponsive:
 
 1. **Check Python buffering**: Ensure `PYTHONUNBUFFERED=1` is set
-2. **Monitor logs**: 
+2. **Monitor logs**:
    ```bash
    docker compose logs -f graphiti-mcp
    ```

@@ -1,0 +1,57 @@
+# Pre-commit hooks for security and code quality
+# Install: pip install pre-commit
+# Setup: pre-commit install
+# Manual run: pre-commit run --all-files
+
+repos:
+  # TruffleHog - Secret Detection
+  - repo: local
+    hooks:
+      - id: trufflehog
+        name: TruffleHog Secret Scanner
+        description: Detect secrets in your data before committing
+        entry: bash -c 'if command -v trufflehog &> /dev/null; then trufflehog git file://. --since-commit HEAD --no-verification --fail; else echo "Warning - TruffleHog not installed. Install with brew install trufflehog"; fi'
+        language: system
+        stages: ["commit", "push"]
+        pass_filenames: false
+        always_run: true
+
+  # Gitleaks - Additional Secret Detection
+  - repo: https://github.com/gitleaks/gitleaks
+    rev: v8.24.0
+    hooks:
+      - id: gitleaks
+
+  # Check for files that would be ignored
+  - repo: https://github.com/pre-commit/pre-commit-hooks
+    rev: v4.5.0
+    hooks:
+      - id: check-added-large-files
+        args: ['--maxkb=1000']
+        description: Prevent large files from being committed
+      - id: check-case-conflict
+        description: Check for files that would conflict in case-insensitive filesystems
+      - id: check-merge-conflict
+        description: Check for files that contain merge conflict strings
+      - id: detect-private-key
+        description: Detect presence of private keys
+      - id: end-of-file-fixer
+        description: Ensure files end with a newline
+      - id: trailing-whitespace
+        description: Trim trailing whitespace
+
+  # Python specific checks
+  - repo: https://github.com/psf/black
+    rev: 24.3.0
+    hooks:
+      - id: black
+        language_version: python3
+        description: Format Python code with Black
+
+  # Security audit for Python dependencies
+  # Temporarily disabled due to pyproject.toml/requirements.txt conflict
+  # - repo: https://github.com/Lucas-C/pre-commit-hooks-safety
+  #   rev: v1.3.3
+  #   hooks:
+  #     - id: python-safety-dependencies-check
+  #       description: Check Python dependencies for known security vulnerabilities

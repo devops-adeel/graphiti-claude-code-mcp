@@ -10,7 +10,7 @@ Testing of the Graphiti Claude Code MCP Server revealed successful core function
 - All 6 sections present: AUTOMATIC BEHAVIORS, MEMORY USAGE, CONFLICT RESOLUTION, MEMORY CAPTURE, TOOLS, RESOURCES
 - MCP handshake works correctly with proper initialization
 
-### ⚠️ Docker Networking 
+### ⚠️ Docker Networking
 **Status**: Partially Working
 
 **Issue Found**: Platform detection bug in `mcp_stdio_wrapper.py`
@@ -76,7 +76,7 @@ Successfully verified all components:
 **Solution**: Pass host OS as environment variable or use different detection method
 
 ### 2. FalkorDB Query Escaping (High Priority)
-**File**: `graphiti_memory.py` 
+**File**: `graphiti_memory.py`
 **Problem**: Special characters in cross-references not escaped
 **Impact**: Queries fail when memories contain '@' or other special characters
 **Solution**: Properly escape special characters in RediSearch queries

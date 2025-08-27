@@ -4,4 +4,4 @@ from .langfuse_analyzer import get_langfuse_analyzer
 from .langfuse_models import *
 from .langfuse_patterns import PatternDetector
 
-__all__ = ['get_langfuse_analyzer', 'PatternDetector']
+__all__ = ["get_langfuse_analyzer", "PatternDetector"]

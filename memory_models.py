@@ -12,6 +12,7 @@ from pydantic import BaseModel, Field, field_validator, ConfigDict
 
 class MemoryType(str, Enum):
     """Types of memories stored in the knowledge graph"""
+
     TDD_CYCLE = "tdd_cycle"
     DEPLOYMENT_SOLUTION = "deployment_solution"
     DOCKER_FIX = "docker_fix"
@@ -26,6 +27,7 @@ class MemoryType(str, Enum):
 
 class MemoryStatus(str, Enum):
     """Memory lifecycle status"""
+
     ACTIVE = "active"
     SUPERSEDED = "superseded"
     HISTORICAL = "historical"
@@ -34,8 +36,9 @@ class MemoryStatus(str, Enum):
 
 class BaseMemoryMetadata(BaseModel):
     """Base model for all memory metadata"""
+
     model_config = ConfigDict(use_enum_values=True)
-    
+
     type: MemoryType = Field(default=MemoryType.GENERAL)
     title: str = Field(..., min_length=1, max_length=500)
     content: Optional[str] = None
@@ -48,6 +51,7 @@ class BaseMemoryMetadata(BaseModel):
 
 class TDDCycleMetadata(BaseMemoryMetadata):
     """Metadata for TDD cycle patterns"""
+
     type: Literal[MemoryType.TDD_CYCLE] = Field(default=MemoryType.TDD_CYCLE)
     red_phase: str = Field(..., description="Failing test code")
     green_phase: Optional[str] = Field(None, description="Minimal passing code")
@@ -59,18 +63,22 @@ class TDDCycleMetadata(BaseMemoryMetadata):
 
 class DeploymentSolutionMetadata(BaseMemoryMetadata):
     """Metadata for deployment solutions"""
-    type: Literal[MemoryType.DEPLOYMENT_SOLUTION] = Field(default=MemoryType.DEPLOYMENT_SOLUTION)
+
+    type: Literal[MemoryType.DEPLOYMENT_SOLUTION] = Field(
+        default=MemoryType.DEPLOYMENT_SOLUTION
+    )
     error: str = Field(..., description="Error encountered")
     solution: str = Field(..., description="Solution that worked")
     context: Dict[str, Any] = Field(default_factory=dict)
     success_count: int = Field(default=1)
     docker_compose: Optional[str] = None
-    
-    @field_validator('context')
+
+    @field_validator("context")
     @classmethod
     def validate_context(cls, v):
         """Ensure context is serializable"""
         import json
+
         try:
             json.dumps(v)
         except (TypeError, ValueError) as e:
@@ -80,6 +88,7 @@ class DeploymentSolutionMetadata(BaseMemoryMetadata):
 
 class DockerFixMetadata(BaseMemoryMetadata):
     """Metadata for Docker-specific fixes"""
+
     type: Literal[MemoryType.DOCKER_FIX] = Field(default=MemoryType.DOCKER_FIX)
     error: str = Field(..., description="Docker error")
     fix: str = Field(..., description="Fix that resolved the issue")
@@ -91,7 +100,10 @@ class DockerFixMetadata(BaseMemoryMetadata):
 
 class CommandPatternMetadata(BaseMemoryMetadata):
     """Metadata for command patterns"""
-    type: Literal[MemoryType.COMMAND_PATTERN] = Field(default=MemoryType.COMMAND_PATTERN)
+
+    type: Literal[MemoryType.COMMAND_PATTERN] = Field(
+        default=MemoryType.COMMAND_PATTERN
+    )
     command: str = Field(..., description="Command that was run")
     context: str = Field(..., description="Context where useful")
     success: bool = Field(..., description="Whether it succeeded")
@@ -101,6 +113,7 @@ class CommandPatternMetadata(BaseMemoryMetadata):
 
 class SupersessionMetadata(BaseMemoryMetadata):
     """Metadata for superseded memories"""
+
     supersedes: str = Field(..., description="UUID of superseded memory")
     supersession_reason: str = Field(..., description="Reason for supersession")
     superseded_at: datetime = Field(default_factory=datetime.utcnow)
@@ -109,6 +122,7 @@ class SupersessionMetadata(BaseMemoryMetadata):
 
 class GTDTaskMetadata(BaseMemoryMetadata):
     """Metadata for GTD tasks"""
+
     type: Literal[MemoryType.GTD_TASK] = Field(default=MemoryType.GTD_TASK)
     task_id: str = Field(..., description="GTD task identifier")
     context: str = Field(..., description="GTD context (@computer, @home, etc)")
@@ -119,7 +133,7 @@ class GTDTaskMetadata(BaseMemoryMetadata):
 
 class MetadataFactory:
     """Factory for creating appropriate metadata models"""
-    
+
     @staticmethod
     def create_metadata(memory_type: str, data: dict) -> BaseMemoryMetadata:
         """Create appropriate metadata model based on type"""
@@ -130,18 +144,18 @@ class MetadataFactory:
             MemoryType.COMMAND_PATTERN: CommandPatternMetadata,
             MemoryType.GTD_TASK: GTDTaskMetadata,
         }
-        
+
         model_class = type_map.get(memory_type, BaseMemoryMetadata)
         return model_class(**data)
-    
+
     @staticmethod
     def validate_metadata(data: dict) -> dict:
         """Validate and clean metadata for storage"""
         # Determine type
-        memory_type = data.get('type', MemoryType.GENERAL)
-        
+        memory_type = data.get("type", MemoryType.GENERAL)
+
         # Create model for validation
         metadata = MetadataFactory.create_metadata(memory_type, data)
-        
+
         # Return validated dict
         return metadata.model_dump()

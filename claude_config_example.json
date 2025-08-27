@@ -20,7 +20,7 @@
 
 // INSTALLATION INSTRUCTIONS:
 // =========================
-// 
+//
 // 1. Build the Docker image first:
 //    cd /Users/adeel/Documents/1_projects/graphiti-claude-code-mcp
 //    ./scripts/build-docker.sh

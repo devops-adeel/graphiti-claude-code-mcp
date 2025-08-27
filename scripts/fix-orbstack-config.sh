@@ -38,21 +38,21 @@ if [ -f .env.graphiti ]; then
     # Backup existing file
     cp .env.graphiti .env.graphiti.backup
     echo "   Backed up to .env.graphiti.backup"
-    
+
     # Update or add FALKORDB_HOST for OrbStack container-to-container communication
     if grep -q "^FALKORDB_HOST=" .env.graphiti; then
         sed -i.tmp 's/^FALKORDB_HOST=.*/FALKORDB_HOST=falkordb.local/' .env.graphiti
     else
         echo "FALKORDB_HOST=falkordb.local" >> .env.graphiti
     fi
-    
+
     # Update or add FALKORDB_PORT (use internal port for container-to-container)
     if grep -q "^FALKORDB_PORT=" .env.graphiti; then
         sed -i.tmp 's/^FALKORDB_PORT=.*/FALKORDB_PORT=6379/' .env.graphiti
     else
         echo "FALKORDB_PORT=6379" >> .env.graphiti
     fi
-    
+
     rm -f .env.graphiti.tmp
     echo -e "${GREEN}✅ Updated .env.graphiti for OrbStack networking${NC}"
 else

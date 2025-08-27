@@ -19,37 +19,35 @@ logger = logging.getLogger(__name__)
 
 class CommandGenerator:
     """Generates Claude Code commands with GTD integration"""
-    
+
     def __init__(self):
         self.memory = None
         self.capture = None
         self.commands_dir = Path.home() / ".claude" / "commands"
         self.commands_dir.mkdir(parents=True, exist_ok=True)
-    
+
     async def initialize(self):
         """Initialize connections"""
         self.memory = await get_shared_memory()
         self.capture = await get_pattern_capture()
         logger.info("CommandGenerator initialized")
-    
+
     async def generate_tdd_feature_command(self) -> str:
         """Generate /tdd-feature command with memory awareness"""
-        
+
         # Search for TDD patterns
         patterns = await self.memory.search_with_temporal_weight(
-            "TDD pattern pytest",
-            filter_source="claude_code"
+            "TDD pattern pytest", filter_source="claude_code"
         )
-        
+
         # Search for related GTD tasks
         gtd_tasks = await self.memory.search_with_temporal_weight(
-            "task @computer testing",
-            filter_source="gtd_coach"
+            "task @computer testing", filter_source="gtd_coach"
         )
-        
+
         # Get pattern evolution
         evolution = await self.capture.get_pattern_evolution(PatternType.TDD_CYCLE)
-        
+
         command_content = f"""---
 allowed-tools: Write, Edit, Bash(pytest:*), Read
 description: Scaffold test-first Python feature with learned patterns
@@ -112,35 +110,32 @@ pytest --cov=$ARGUMENTS --cov-report=term-missing
 
 Remember: Red -> Green -> Refactor -> Capture Learning
 """
-        
+
         # Save command
         command_path = self.commands_dir / "tdd-feature.md"
         command_path.write_text(command_content)
         logger.info(f"Generated /tdd-feature command at {command_path}")
-        
+
         return command_content
-    
+
     async def generate_check_deployment_command(self) -> str:
         """Generate /check-deployment command with deployment memory"""
-        
+
         # Search for deployment issues and solutions
         deployment_issues = await self.memory.search_with_temporal_weight(
-            "docker deployment issue OrbStack",
-            include_historical=True
+            "docker deployment issue OrbStack", include_historical=True
         )
-        
+
         # Search for GTD deployment tasks
         gtd_deploy = await self.memory.search_with_temporal_weight(
-            "@computer deploy task",
-            filter_source="gtd_coach"
+            "@computer deploy task", filter_source="gtd_coach"
         )
-        
+
         # Get successful deployment commands
         deploy_commands = await self.memory.search_with_temporal_weight(
-            "command docker compose success",
-            filter_source="claude_code"
+            "command docker compose success", filter_source="claude_code"
         )
-        
+
         command_content = f"""---
 allowed-tools: Bash(docker:*), Bash(curl:*), Read
 description: Check OrbStack deployment with learned solutions
@@ -195,26 +190,25 @@ docker stats --no-stream
 ## Update GTD Task:
 If deployment succeeds, remember to update related GTD tasks.
 """
-        
+
         # Save command
         command_path = self.commands_dir / "check-deployment.md"
         command_path.write_text(command_content)
         logger.info(f"Generated /check-deployment command at {command_path}")
-        
+
         return command_content
-    
+
     async def generate_fix_docker_command(self) -> str:
         """Generate /fix-docker command with Docker-specific solutions"""
-        
+
         # Search for Docker fixes
         docker_fixes = await self.memory.search_with_temporal_weight(
-            "Docker fix error build",
-            include_historical=False
+            "Docker fix error build", include_historical=False
         )
-        
+
         # Get evolution of Docker solutions
         evolution = await self.capture.get_pattern_evolution(PatternType.DOCKER_FIX)
-        
+
         command_content = f"""---
 allowed-tools: Bash(docker:*), Edit, Read, Write
 description: Fix Docker build/deployment issues with learned solutions
@@ -289,23 +283,22 @@ If you find a new fix, it will be automatically captured for future use.
 - Netdata monitoring on port 19999
 - Always check port conflicts with: `lsof -i :6379`
 """
-        
+
         # Save command
         command_path = self.commands_dir / "fix-docker.md"
         command_path.write_text(command_content)
         logger.info(f"Generated /fix-docker command at {command_path}")
-        
+
         return command_content
-    
+
     async def generate_project_structure_command(self) -> str:
         """Generate /project-structure command with preferences"""
-        
+
         # Search for structure patterns
         structures = await self.memory.search_with_temporal_weight(
-            "project structure minimal clean",
-            filter_source="claude_code"
+            "project structure minimal clean", filter_source="claude_code"
         )
-        
+
         command_content = f"""---
 allowed-tools: Write, Bash(mkdir:*), Bash(touch:*)
 description: Create project with preferred minimal structure
@@ -380,17 +373,17 @@ testpaths = ["tests"]
 ## Link to GTD:
 Create a GTD project task if this is a significant project.
 """
-        
+
         # Save command
         command_path = self.commands_dir / "project-structure.md"
         command_path.write_text(command_content)
         logger.info(f"Generated /project-structure command at {command_path}")
-        
+
         return command_content
-    
+
     async def generate_search_memory_command(self) -> str:
         """Generate /search-memory command to query shared knowledge"""
-        
+
         command_content = f"""---
 allowed-tools: Read
 description: Search shared knowledge graph (GTD + Code)
@@ -406,7 +399,7 @@ Searching in group: {os.getenv('GRAPHITI_GROUP_ID', 'shared_gtd_knowledge')}
 
 ### 1. Coding Patterns:
 - TDD patterns and test examples
-- Docker/deployment solutions  
+- Docker/deployment solutions
 - Project structures
 - Command patterns
 
@@ -440,102 +433,104 @@ Searching in group: {os.getenv('GRAPHITI_GROUP_ID', 'shared_gtd_knowledge')}
 
 The search will return temporally-weighted results, with recent and active memories prioritized.
 """
-        
+
         # Save command
         command_path = self.commands_dir / "search-memory.md"
         command_path.write_text(command_content)
         logger.info(f"Generated /search-memory command at {command_path}")
-        
+
         return command_content
-    
+
     def _format_patterns(self, patterns: List[Any]) -> str:
         """Format TDD patterns for display"""
         if not patterns:
             return "- No patterns found yet. Patterns will be captured as you work."
-        
+
         formatted = []
         for i, pattern in enumerate(patterns, 1):
-            meta = getattr(pattern, 'metadata', {})
+            meta = getattr(pattern, "metadata", {})
             formatted.append(
                 f"{i}. {meta.get('title', 'Pattern')} "
                 f"(Score: {getattr(pattern, 'final_score', 0):.2f})\n"
                 f"   {meta.get('pattern', '')[:100]}..."
             )
-        
+
         return "\n".join(formatted)
-    
+
     def _format_gtd_tasks(self, tasks: List[Any]) -> str:
         """Format GTD tasks for display"""
         if not tasks:
             return "- No related GTD tasks found"
-        
+
         formatted = []
         for task in tasks:
-            meta = getattr(task, 'metadata', {})
-            formatted.append(f"- {meta.get('title', 'Task')}: {meta.get('description', '')[:80]}")
-        
+            meta = getattr(task, "metadata", {})
+            formatted.append(
+                f"- {meta.get('title', 'Task')}: {meta.get('description', '')[:80]}"
+            )
+
         return "\n".join(formatted)
-    
+
     def _format_deployment_issues(self, issues: List[Any]) -> str:
         """Format deployment issues with solutions"""
         if not issues:
             return "- No previous deployment issues recorded"
-        
+
         formatted = []
         for issue in issues:
-            meta = getattr(issue, 'metadata', {})
+            meta = getattr(issue, "metadata", {})
             formatted.append(
                 f"**Issue**: {meta.get('error', 'Unknown')[:60]}...\n"
                 f"**Solution**: {meta.get('solution', 'No solution')[:100]}...\n"
                 f"**Status**: {getattr(issue, 'status', 'unknown')}\n"
             )
-        
+
         return "\n".join(formatted)
-    
+
     def _format_common_fixes(self, issues: List[Any]) -> str:
         """Extract and format common fixes"""
         if not issues:
             return "No common fixes found"
-        
+
         fixes = []
         for issue in issues:
-            meta = getattr(issue, 'metadata', {})
-            if meta.get('solution'):
+            meta = getattr(issue, "metadata", {})
+            if meta.get("solution"):
                 fixes.append(f"- {meta['solution'][:120]}...")
-        
+
         return "\n".join(fixes[:5]) if fixes else "No fixes available"
-    
+
     def _format_commands(self, commands: List[Any]) -> str:
         """Format successful commands"""
         if not commands:
             return "No command patterns found"
-        
+
         formatted = []
         for cmd in commands:
-            meta = getattr(cmd, 'metadata', {})
+            meta = getattr(cmd, "metadata", {})
             formatted.append(
                 f"```bash\n{meta.get('command', 'No command')}\n```\n"
                 f"Context: {meta.get('context', 'Unknown context')}"
             )
-        
+
         return "\n\n".join(formatted)
-    
+
     def _format_docker_fixes(self, fixes: List[Any]) -> str:
         """Format Docker-specific fixes"""
         if not fixes:
             return "No Docker fixes found in memory"
-        
+
         formatted = []
         for fix in fixes:
-            meta = getattr(fix, 'metadata', {})
+            meta = getattr(fix, "metadata", {})
             formatted.append(
                 f"### {meta.get('error', 'Error')[:50]}...\n"
                 f"**Fix**: {meta.get('fix', meta.get('solution', 'No fix'))}\n"
                 f"**Confidence**: {getattr(fix, 'final_score', 0):.2f}\n"
             )
-        
+
         return "\n".join(formatted)
-    
+
     async def generate_all_commands(self):
         """Generate all Claude commands"""
         await self.generate_tdd_feature_command()
@@ -543,9 +538,9 @@ The search will return temporally-weighted results, with recent and active memor
         await self.generate_fix_docker_command()
         await self.generate_project_structure_command()
         await self.generate_search_memory_command()
-        
+
         logger.info(f"Generated all commands in {self.commands_dir}")
-        
+
         # Create index file
         index_content = """# Claude Code Commands with Shared Memory
 
@@ -567,11 +562,13 @@ All commands access the shared knowledge graph: `{}`
 - Solution evolution tracking (superseded patterns preserved)
 - Cross-domain insights (GTD ↔ Coding connections)
 - Never deletes history (only marks as superseded)
-""".format(os.getenv('GRAPHITI_GROUP_ID', 'shared_gtd_knowledge'))
-        
+""".format(
+            os.getenv("GRAPHITI_GROUP_ID", "shared_gtd_knowledge")
+        )
+
         index_path = self.commands_dir / "README.md"
         index_path.write_text(index_content)
-        
+
         return index_content
 
 
@@ -582,9 +579,9 @@ _generator_instance = None
 async def get_command_generator() -> CommandGenerator:
     """Get or create singleton CommandGenerator instance"""
     global _generator_instance
-    
+
     if _generator_instance is None:
         _generator_instance = CommandGenerator()
         await _generator_instance.initialize()
-    
+
     return _generator_instance

@@ -13,27 +13,27 @@ services:
       - FALKORDB_PORT=${FALKORDB_PORT:-6379}
       # CRITICAL: Must use same database as GTD Coach
       - FALKORDB_DATABASE=${FALKORDB_DATABASE:-shared_gtd_knowledge}
-      
+
       # OpenAI Configuration
       - OPENAI_API_KEY=${OPENAI_API_KEY}
       - OPENAI_MODEL=${OPENAI_MODEL:-gpt-4o-mini}
       - OPENAI_EMBEDDING_MODEL=${OPENAI_EMBEDDING_MODEL:-text-embedding-3-small}
-      
+
       # Memory Configuration
       - MEMORY_DECAY_FACTOR=${MEMORY_DECAY_FACTOR:-0.95}
       - MEMORY_INCLUDE_HISTORICAL=${MEMORY_INCLUDE_HISTORICAL:-false}
       - ENABLE_GTD_INTEGRATION=${ENABLE_GTD_INTEGRATION:-true}
       - ENABLE_CROSS_REFERENCES=${ENABLE_CROSS_REFERENCES:-true}
-      
+
       # Langfuse Configuration
       - LANGFUSE_PUBLIC_KEY=${LANGFUSE_PUBLIC_KEY}
       - LANGFUSE_SECRET_KEY=${LANGFUSE_SECRET_KEY}
       - LANGFUSE_HOST=https://langfuse.local
-      
+
       # MCP Server Configuration
       - MCP_SERVER_NAME=graphiti-claude-code-mcp
       - LOG_LEVEL=${LOG_LEVEL:-INFO}
-    
+
     volumes:
       # Mount local code for development
       - .:/app
@@ -41,21 +41,21 @@ services:
       - ${HOME}/gtd-coach/.env.graphiti:/app/.env.graphiti:ro
       # Mount Claude commands output directory
       - ${HOME}/.claude/commands:/root/.claude/commands
-    
+
     ports:
       # MCP server port (if needed for debugging)
       - "5173:5173"
-    
+
     networks:
       - graphiti-network
-    
+
     command: python mcp_server.py
-    
+
     restart: unless-stopped
-    
+
     depends_on:
       - falkordb-check
-    
+
     # healthcheck:
     #   test: ["CMD", "python", "-c", "import asyncio; from graphiti_memory import get_shared_memory; asyncio.run(get_shared_memory())"]
     #   interval: 30s
@@ -78,7 +78,7 @@ services:
     networks:
       - graphiti-network
     restart: "no"
-  
+
   # Utility service for running test commands
   test-runner:
     image: redis:7-alpine

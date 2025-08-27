@@ -15,7 +15,7 @@ import pytest_asyncio
 sys.path.insert(0, str(Path(__file__).parent.parent))
 
 # Configure asyncio for pytest
-pytest_plugins = ('pytest_asyncio',)
+pytest_plugins = ("pytest_asyncio",)
 
 
 @pytest.fixture(scope="session")
@@ -39,17 +39,17 @@ def test_env():
         "FALKORDB_PORT": os.environ.get("FALKORDB_PORT", "6379"),
         "GRAPHITI_GROUP_ID": "test_graphiti_mcp",
         "FALKORDB_DATABASE": "test_knowledge_graph",
-        "LOG_LEVEL": "ERROR"  # Reduce test noise
+        "LOG_LEVEL": "ERROR",  # Reduce test noise
     }
-    
+
     # Save original env
     original_env = {}
     for key, value in env_vars.items():
         original_env[key] = os.environ.get(key)
         os.environ[key] = value
-    
+
     yield env_vars
-    
+
     # Restore original env
     for key, original_value in original_env.items():
         if original_value is None:
@@ -62,6 +62,7 @@ def test_env():
 async def mock_langfuse_client():
     """Create a mock Langfuse client"""
     from tests.fixtures.langfuse_test_data import MockLangfuseClient
+
     return MockLangfuseClient()
 
 
@@ -94,17 +95,17 @@ async def mock_pattern_capture():
 async def mock_mcp_server():
     """Create a mock MCP server for testing"""
     from mcp.server import Server
-    
+
     server = MagicMock(spec=Server)
     server.name = "test-graphiti-mcp"
     server.version = "0.1.0"
-    
+
     # Mock server methods
     server.list_tools = AsyncMock(return_value=[])
     server.call_tool = AsyncMock(return_value={"status": "success"})
     server.list_resources = AsyncMock(return_value=[])
     server.read_resource = AsyncMock(return_value={"content": "test"})
-    
+
     return server
 
 
@@ -112,6 +113,7 @@ async def mock_mcp_server():
 def langfuse_test_scenarios():
     """Get all Langfuse test scenarios"""
     from tests.fixtures.langfuse_test_data import LangfuseTestData
+
     return LangfuseTestData.get_all_test_scenarios()
 
 
@@ -119,6 +121,7 @@ def langfuse_test_scenarios():
 def pattern_detector():
     """Get a pattern detector instance"""
     from langfuse_integration.langfuse_patterns import PatternDetector
+
     return PatternDetector()
 
 
@@ -134,12 +137,8 @@ def pytest_configure(config):
     config.addinivalue_line(
         "markers", "slow: marks tests as slow (deselect with '-m \"not slow\"')"
     )
-    config.addinivalue_line(
-        "markers", "integration: marks tests as integration tests"
-    )
-    config.addinivalue_line(
-        "markers", "unit: marks tests as unit tests"
-    )
+    config.addinivalue_line("markers", "integration: marks tests as integration tests")
+    config.addinivalue_line("markers", "unit: marks tests as unit tests")
 
 
 # Skip slow tests by default in CI
@@ -158,17 +157,17 @@ def pytest_addoption(parser):
         "--ci",
         action="store_true",
         default=False,
-        help="Run in CI mode (skip slow tests)"
+        help="Run in CI mode (skip slow tests)",
     )
     parser.addoption(
         "--real-langfuse",
         action="store_true",
         default=False,
-        help="Run tests against real Langfuse instance"
+        help="Run tests against real Langfuse instance",
     )
     parser.addoption(
         "--real-falkordb",
         action="store_true",
         default=False,
-        help="Run tests against real FalkorDB instance"
+        help="Run tests against real FalkorDB instance",
     )

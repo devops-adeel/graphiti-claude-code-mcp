@@ -49,10 +49,10 @@ make rebuild-secure
 
 ### Security Benefits
 
-✅ **Separation of Duties**: Automated systems read, humans write  
-✅ **Audit Trail**: Every secret modification requires Touch ID  
-✅ **Damage Limitation**: Compromised token can't corrupt secrets  
-✅ **Compliance**: Follows security best practices for service accounts  
+✅ **Separation of Duties**: Automated systems read, humans write
+✅ **Audit Trail**: Every secret modification requires Touch ID
+✅ **Damage Limitation**: Compromised token can't corrupt secrets
+✅ **Compliance**: Follows security best practices for service accounts
 
 ### Token Renewal
 
