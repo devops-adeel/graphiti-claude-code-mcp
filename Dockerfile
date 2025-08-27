@@ -19,10 +19,15 @@ COPY capture.py ./
 COPY commands.py ./
 COPY mcp_server.py ./
 COPY mcp_stdio_wrapper.py ./
-COPY langfuse_analyzer.py ./
-COPY langfuse_patterns.py ./
-COPY langfuse_models.py ./
-COPY analyze_langfuse_traces.py ./
+
+# Copy Langfuse integration directory
+COPY langfuse_integration/ ./langfuse_integration/
+
+# Copy scripts directory
+COPY scripts/ ./scripts/
+
+# Copy documentation
+COPY docs/ ./docs/
 
 # Copy test directory
 COPY tests/ ./tests/

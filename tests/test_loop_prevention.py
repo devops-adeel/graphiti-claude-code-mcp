@@ -13,7 +13,7 @@ import logging
 # Add parent directory to path
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 
-from langfuse.langfuse_analyzer import get_langfuse_analyzer
+from langfuse_integration.langfuse_analyzer import get_langfuse_analyzer
 from langfuse import Langfuse
 
 # Configure logging
