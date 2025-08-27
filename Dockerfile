@@ -32,6 +32,8 @@ COPY docs/ ./docs/
 # Copy test directory
 COPY tests/ ./tests/
 
+# Do NOT copy .env.graphiti - it should be mounted at runtime
+
 # Install Python dependencies
 RUN pip install --no-cache-dir -e .
 

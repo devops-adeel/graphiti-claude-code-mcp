@@ -1,5 +1,3 @@
-version: '3.8'
-
 services:
   # Graphiti Claude Code MCP Server
   graphiti-mcp:
@@ -80,11 +78,21 @@ services:
     networks:
       - graphiti-network
     restart: "no"
+  
+  # Utility service for running test commands
+  test-runner:
+    image: redis:7-alpine
+    container_name: graphiti-test-runner
+    networks:
+      - graphiti-network
+    restart: "no"
+    entrypoint: ["/bin/sh", "-c"]
+    command: ["echo 'Test runner ready'"]
 
 networks:
   graphiti-network:
-    name: graphiti-network
-    external: false
+    name: falkordb_default
+    external: true
 
 # Note: This compose file assumes FalkorDB is already running via OrbStack
 # on port 6379 as configured in /Users/adeel/Documents/1_projects/falkordb/docker-compose.yml
