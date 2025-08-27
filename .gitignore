@@ -9,6 +9,8 @@ venv.bak/
 
 # Environment Files (CRITICAL - contains API keys)
 .env
+# Allow the example configuration template
+!.env.graphiti.example
 .env.*
 *.env
 .envrc
