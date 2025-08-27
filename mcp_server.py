@@ -19,6 +19,7 @@ from graphiti_memory import get_shared_memory, MemoryStatus
 from capture import get_pattern_capture, PatternType
 from commands import get_command_generator
 from langfuse_integration.langfuse_analyzer import get_langfuse_analyzer
+from secrets_manager import SecretsManager
 
 # Configure logging first
 logging.basicConfig(level=logging.INFO)
@@ -1036,11 +1037,31 @@ async def _count_memories(memory) -> int:
 async def main():
     """Run the MCP server"""
     logger.info("Starting Graphiti Claude Code MCP Server")
+
+    # Initialize secrets first (fail fast if secrets unavailable)
+    try:
+        logger.info("Initializing 1Password SDK...")
+        secrets_manager = await SecretsManager.get_instance()
+
+        # Perform health check
+        health = await secrets_manager.health_check()
+        if not health["secrets_accessible"]:
+            raise RuntimeError("Health check failed: Cannot access secrets")
+
+        logger.info(
+            f"✅ 1Password SDK initialized (token expires in {health['token_days_left']} days)"
+        )
+
+    except Exception as e:
+        logger.error(f"❌ Failed to initialize secrets: {e}")
+        # Fail fast as requested
+        raise SystemExit(f"Cannot start MCP server without secrets: {e}")
+
     logger.info(
         f"Shared group_id: {os.getenv('GRAPHITI_GROUP_ID', 'shared_gtd_knowledge')}"
     )
 
-    # Initialize components
+    # Initialize components (they can now access secrets from environment)
     memory = await get_shared_memory()
     capture = await get_pattern_capture()
     generator = await get_command_generator()
