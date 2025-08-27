@@ -46,35 +46,87 @@ A temporal knowledge graph memory layer for Claude Code that captures coding pat
 
 - Python 3.11+
 - Docker with OrbStack (macOS) or Docker Desktop
-- FalkorDB running on port 6380 (via your existing setup)
+- FalkorDB running on port 6380 ([setup guide](https://docs.falkordb.com/quick-start))
 - 1Password Service Account with read access to HomeLab vault
 - OpenAI API key (stored in 1Password)
 
-## Docker Installation (Recommended for Claude Code)
+## Installation via Claude CLI (Recommended)
 
-### Quick Start
+### Quick Setup
+
+1. **Clone and build the Docker image:**
+   ```bash
+   git clone https://github.com/yourusername/graphiti-claude-code-mcp.git
+   cd graphiti-claude-code-mcp
+   ./scripts/build-docker.sh
+   ```
+
+2. **Set up 1Password service token:**
+   ```bash
+   # Create config directory
+   mkdir -p ~/.config/graphiti-mcp
+
+   # Save your service token (get from 1Password)
+   echo 'export OP_SERVICE_ACCOUNT_TOKEN="your-token-here"' > ~/.config/graphiti-mcp/service-token
+   chmod 600 ~/.config/graphiti-mcp/service-token
+   ```
+
+3. **Create configuration file:**
+   ```bash
+   # Copy the template
+   cp .env.graphiti.example ~/.config/graphiti-mcp/.env.graphiti
+
+   # Edit to set your FalkorDB connection details
+   nano ~/.config/graphiti-mcp/.env.graphiti
+   ```
+
+4. **Add to Claude Code using CLI:**
+   ```bash
+   # Make wrapper executable
+   chmod +x scripts/claude-mcp-wrapper.sh
+
+   # Add the MCP server (from the project directory)
+   claude mcp add graphiti-mcp -- $PWD/scripts/claude-mcp-wrapper.sh
+   ```
+
+5. **Verify connection:**
+   ```
+   # In Claude Code, ask:
+   "Search your memory for 'test connection'"
+
+   # Or check MCP server status:
+   "What MCP servers are connected?"
+   ```
+
+### What This Does
+
+The `claude mcp add` command:
+- Registers the `graphiti-mcp` server with Claude Code
+- Uses the wrapper script to handle Docker execution
+- Loads your 1Password service token securely
+- Mounts your configuration from `~/.config/graphiti-mcp/`
+- Connects to your FalkorDB instance
+
+## Alternative: Manual Configuration
+
+If you prefer to manually edit the configuration file, you can add the server directly to Claude Code's configuration:
 
 1. **Build the Docker image:**
    ```bash
    ./scripts/build-docker.sh
    ```
 
-2. **Test the setup:**
-   ```bash
-   ./scripts/test-docker.sh
-   ```
-
-3. **Configure Claude Code:**
+2. **Edit Claude Code configuration:**
    Add to `~/Library/Application Support/Claude/claude_desktop_config.json`:
    ```json
    {
      "mcpServers": {
-       "graphiti-memory": {
+       "graphiti-mcp": {
          "command": "docker",
          "args": [
            "run", "-i", "--rm",
-           "-v", "/Users/adeel/.env:/app/.env:ro",
-           "-v", "/Users/adeel/Documents/1_projects/graphiti-claude-code-mcp/.env.graphiti:/app/.env.graphiti:ro",
+           "-e", "OP_SERVICE_ACCOUNT_TOKEN=${OP_SERVICE_ACCOUNT_TOKEN}",
+           "-v", "${HOME}/.config/graphiti-mcp/.env.graphiti:/app/.env.graphiti:ro",
            "--add-host", "host.docker.internal:host-gateway",
            "graphiti-mcp-server:latest"
          ]
@@ -83,23 +135,19 @@ A temporal knowledge graph memory layer for Claude Code that captures coding pat
    }
    ```
 
-4. **Restart Claude Code** and verify connection
+3. **Source your service token before starting Claude Code:**
+   ```bash
+   source ~/.config/graphiti-mcp/service-token
+   claude
+   ```
 
-### Docker Setup Details
+## Docker Setup Details
 
 The Docker installation provides:
 - **Isolated environment** - No Python version conflicts
 - **Automatic stdio transport** - Proper MCP protocol handling
 - **Host networking** - Connects to FalkorDB on host machine
-- **Secure secrets** - Mounts environment files as read-only
-
-### Environment Configuration
-
-The Docker container expects:
-- `~/.env` - Contains your OPENAI_API_KEY
-- `.env.graphiti` - Contains Graphiti/FalkorDB configuration
-
-The wrapper automatically handles Docker networking by converting `localhost` to `host.docker.internal` when running in Docker.
+- **Secure secrets** - Uses 1Password SDK for API keys
 
 ### Troubleshooting Docker
 
@@ -107,13 +155,18 @@ If Claude Code can't connect:
 1. Ensure Docker is running: `docker ps`
 2. Check FalkorDB is accessible: `nc -z localhost 6380`
 3. Verify image exists: `docker images | grep graphiti-mcp-server`
-4. Check logs: Remove `--rm` from args and run `docker logs <container-id>`
+4. Check service token: `source ~/.config/graphiti-mcp/service-token && echo $OP_SERVICE_ACCOUNT_TOKEN`
+5. View logs: `docker logs $(docker ps -lq)` after attempting connection
 
 For manual testing:
 ```bash
+# Load service token
+source ~/.config/graphiti-mcp/service-token
+
+# Run container manually
 docker run -i --rm \
-  -v ~/.env:/app/.env:ro \
-  -v $(pwd)/.env.graphiti:/app/.env.graphiti:ro \
+  -e OP_SERVICE_ACCOUNT_TOKEN="$OP_SERVICE_ACCOUNT_TOKEN" \
+  -v ~/.config/graphiti-mcp/.env.graphiti:/app/.env.graphiti:ro \
   --add-host host.docker.internal:host-gateway \
   graphiti-mcp-server:latest
 ```
@@ -159,57 +212,55 @@ All secrets are defined in `config/secrets_manifest.py`:
 
 ## Quick Start
 
-### 1. Clone the Repository
+For a quick installation using Claude Code's CLI, see the [Installation via Claude CLI](#installation-via-claude-cli-recommended) section above.
+
+### Manual Setup
+
+If you prefer manual setup or need to customize the installation:
+
+#### 1. Clone the Repository
 
 ```bash
 git clone https://github.com/yourusername/graphiti-claude-code-mcp.git
 cd graphiti-claude-code-mcp
 ```
 
-### 2. Set Up 1Password SDK
+#### 2. Set Up 1Password SDK
 
-The system now uses 1Password SDK for all secrets. Configuration values remain in `.env.graphiti`:
+The system uses 1Password SDK for all secrets. Configuration values are stored in `~/.config/graphiti-mcp/.env.graphiti`:
 
 ```bash
+# Create config directory
+mkdir -p ~/.config/graphiti-mcp
+
+# Save your service token (get from 1Password)
+echo 'export OP_SERVICE_ACCOUNT_TOKEN="your-token-here"' > ~/.config/graphiti-mcp/service-token
+chmod 600 ~/.config/graphiti-mcp/service-token
+
 # Load service account token
 source ~/.config/graphiti-mcp/service-token
 
 # Verify SDK health
 python scripts/check-sdk-health.py
 
-# Create .env.graphiti for non-secret config (if doesn't exist)
-cat > .env.graphiti << 'EOF'
-# Non-secret Configuration Values
-GRAPHITI_GROUP_ID=shared_knowledge
-FALKORDB_HOST=localhost
-FALKORDB_PORT=6380
-FALKORDB_DATABASE=shared_gtd_knowledge
-
-# Model Configuration
-OPENAI_MODEL=gpt-4o-mini
-OPENAI_EMBEDDING_MODEL=text-embedding-3-small
-
-# Memory Configuration
-MEMORY_DECAY_FACTOR=0.95
-MEMORY_INCLUDE_HISTORICAL=false
-ENABLE_GTD_INTEGRATION=true
-ENABLE_CROSS_REFERENCES=true
-EOF
+# Copy and customize configuration
+cp .env.graphiti.example ~/.config/graphiti-mcp/.env.graphiti
+nano ~/.config/graphiti-mcp/.env.graphiti
 ```
 
-Note: Secrets like `OPENAI_API_KEY` and Langfuse credentials are now fetched from 1Password automatically!
+Note: Secrets like `OPENAI_API_KEY` and Langfuse credentials are fetched from 1Password automatically!
 
-### 3. Install Dependencies
+#### 3. Install Dependencies
 
 ```bash
-# Install in development mode
+# For local development
 pip install -e .
 
-# Or use Docker
-docker compose build
+# Or build Docker image (recommended)
+./scripts/build-docker.sh
 ```
 
-### 4. Verify FalkorDB is Running
+#### 4. Verify FalkorDB is Running
 
 ```bash
 # Check FalkorDB status
@@ -220,7 +271,9 @@ redis-cli -p 6380 ping
 docker ps | grep falkor
 ```
 
-### 5. Run Tests
+If FalkorDB is not running, see the [FalkorDB Quick Start Guide](https://docs.falkordb.com/quick-start).
+
+#### 5. Run Tests
 
 ```bash
 # Run all tests
@@ -230,14 +283,17 @@ pytest tests/ -v
 pytest tests/ --cov=. --cov-report=term-missing
 ```
 
-### 6. Start the MCP Server
+#### 6. Start the MCP Server
 
+For Claude Code integration, use the [Installation via Claude CLI](#installation-via-claude-cli-recommended) section.
+
+For local development:
 ```bash
-# Local development
-python mcp_server.py
+# Load service token
+source ~/.config/graphiti-mcp/service-token
 
-# Or via Docker
-docker compose up -d
+# Start server
+python mcp_server.py
 ```
 
 ## Usage Examples
