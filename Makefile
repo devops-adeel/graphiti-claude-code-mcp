@@ -161,10 +161,27 @@ health-check-all: ## Run comprehensive health check (verbose + fix)
 .PHONY: test-connection
 test-connection: ## Test FalkorDB connection
 	@echo "$(BLUE)Testing FalkorDB connection...$(NC)"
-	@docker run --rm --network graphiti-network redis:7-alpine \
-		redis-cli -h falkordb.local -p 6379 ping && \
+	@docker compose run --rm test-runner "redis-cli -h falkordb -p 6379 ping" && \
 		echo "$(GREEN)✅ FalkorDB is accessible$(NC)" || \
 		echo "$(RED)❌ Cannot connect to FalkorDB$(NC)"
+
+.PHONY: test-health-1p
+test-health-1p: ## Run health check with 1Password secrets
+	@echo "$(BLUE)Running health check with 1Password...$(NC)"
+	@source $(SERVICE_TOKEN_FILE) && \
+	op run --env-file="secrets/.env.1password" -- \
+	docker compose run --rm \
+	-e FALKORDB_HOST=falkordb \
+	graphiti-mcp python scripts/health_check_memory.py
+
+.PHONY: test-mcp-1p
+test-mcp-1p: ## Test MCP server with 1Password
+	@echo "$(BLUE)Testing MCP server with 1Password...$(NC)"
+	@source $(SERVICE_TOKEN_FILE) && \
+	op run --env-file="secrets/.env.1password" -- \
+	docker compose run --rm \
+	-e FALKORDB_HOST=falkordb \
+	graphiti-mcp python mcp_server.py
 
 .PHONY: test-sharing
 test-sharing: ## Test knowledge sharing setup
