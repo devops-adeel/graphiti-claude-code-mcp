@@ -1,50 +1,45 @@
+# syntax=docker/dockerfile:1
 FROM python:3.11-slim
 
-# Set working directory
 WORKDIR /app
 
-# Install system dependencies
-RUN apt-get update && apt-get install -y \
-    build-essential \
-    curl \
-    && rm -rf /var/lib/apt/lists/*
+# NO build-essential needed! All packages have ARM64 wheels
 
-# Copy project files
+# Copy only requirements first for better caching
 COPY pyproject.toml ./
 
-# Copy Python modules explicitly
-COPY graphiti_memory.py ./
-COPY memory_models.py ./
-COPY capture.py ./
-COPY commands.py ./
-COPY mcp_server.py ./
-COPY mcp_stdio_wrapper.py ./
+# Use BuildKit cache mount for pip packages
+# This caches downloaded wheels between builds
+RUN --mount=type=cache,target=/root/.cache/pip \
+    pip install --upgrade pip && \
+    pip install \
+        graphiti-core>=0.17.9 \
+        onepassword-sdk==0.1.3 \
+        openai>=1.7.0 \
+        python-dotenv>=1.0.0 \
+        pydantic>=2.5.0 \
+        pydantic-settings>=2.0.0 \
+        mcp>=1.0.0 \
+        falkordb>=1.0.10 \
+        redis>=5.0.0 \
+        tiktoken>=0.5.0 \
+        langfuse>=2.0.0
 
-# Copy Langfuse integration directory
+# Copy only necessary source files
+COPY *.py ./
+COPY config/ ./config/
 COPY langfuse_integration/ ./langfuse_integration/
 
-# Copy scripts directory
-COPY scripts/ ./scripts/
+# Install package with cache mount
+RUN --mount=type=cache,target=/root/.cache/pip \
+    pip install -e . --no-deps
 
-# Copy documentation
-COPY docs/ ./docs/
+# Pre-compile Python bytecode for faster startup
+RUN python -m compileall -q .
 
-# Copy test directory
-COPY tests/ ./tests/
+# Verify critical imports still work
+RUN python -c "import memory_models, capture, graphiti_memory, commands, secrets_manager"
 
-# Do NOT copy .env.graphiti - it should be mounted at runtime
-
-# Install Python dependencies
-RUN pip install --no-cache-dir -e .
-
-# Verify critical Python modules can be imported
-RUN python -c "import memory_models, capture, graphiti_memory, commands, mcp_server"
-
-# Create directories for Claude commands
-RUN mkdir -p /root/.claude/commands
-
-# Set Python unbuffered mode for better logging
 ENV PYTHONUNBUFFERED=1
 
-# Default command (can be overridden)
 CMD ["python", "mcp_server.py"]
