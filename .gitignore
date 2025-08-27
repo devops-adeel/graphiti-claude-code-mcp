@@ -153,6 +153,9 @@ log/
 *.backup
 *.tmp
 
+# Temporary test files
+temp.py
+
 # Mac specific
 *.DS_Store
 .AppleDouble
