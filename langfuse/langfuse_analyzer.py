@@ -35,7 +35,7 @@ except ImportError:
     ANALYZER_AVAILABLE = False
 
 from langfuse import Langfuse
-from langfuse_patterns import PatternDetector
+from .langfuse_patterns import PatternDetector
 from graphiti_memory import get_shared_memory
 
 logger = logging.getLogger(__name__)

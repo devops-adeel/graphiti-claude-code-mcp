@@ -118,7 +118,7 @@ def langfuse_test_scenarios():
 @pytest.fixture
 def pattern_detector():
     """Get a pattern detector instance"""
-    from langfuse_patterns import PatternDetector
+    from langfuse.langfuse_patterns import PatternDetector
     return PatternDetector()
 
 

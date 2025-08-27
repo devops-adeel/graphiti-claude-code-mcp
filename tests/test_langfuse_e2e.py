@@ -16,8 +16,8 @@ import pytest
 # Add parent directory to path for imports
 sys.path.insert(0, str(Path(__file__).parent.parent))
 
-from langfuse_analyzer import LangfuseAnalyzer, get_langfuse_analyzer
-from langfuse_patterns import PatternDetector, PatternType
+from langfuse.langfuse_analyzer import LangfuseAnalyzer, get_langfuse_analyzer
+from langfuse.langfuse_patterns import PatternDetector, PatternType
 from graphiti_memory import get_shared_memory, MemoryStatus
 from tests.fixtures.langfuse_test_data import LangfuseTestData, MockLangfuseClient
 

@@ -18,7 +18,7 @@ from mcp.types import Resource, Tool, TextContent, ImageContent, EmbeddedResourc
 from graphiti_memory import get_shared_memory, MemoryStatus
 from capture import get_pattern_capture, PatternType
 from commands import get_command_generator
-from langfuse_analyzer import get_langfuse_analyzer
+from langfuse.langfuse_analyzer import get_langfuse_analyzer
 
 # Configure logging first
 logging.basicConfig(level=logging.INFO)

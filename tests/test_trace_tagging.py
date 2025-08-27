@@ -72,7 +72,7 @@ async def test_filtering():
     
     try:
         # Import the analyzer
-        from langfuse_analyzer import LangfuseAnalyzer
+        from langfuse.langfuse_analyzer import LangfuseAnalyzer
         
         # Create analyzer instance
         analyzer = LangfuseAnalyzer()

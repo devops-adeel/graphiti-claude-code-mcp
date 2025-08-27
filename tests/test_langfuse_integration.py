@@ -13,9 +13,9 @@ from pathlib import Path
 # Add parent directory to path for imports
 sys.path.insert(0, str(Path(__file__).parent.parent))
 
-from langfuse_analyzer import get_langfuse_analyzer
-from langfuse_patterns import PatternDetector
-from langfuse_models import (
+from langfuse.langfuse_analyzer import get_langfuse_analyzer
+from langfuse.langfuse_patterns import PatternDetector
+from langfuse.langfuse_models import (
     LangfuseTrace, LangfuseObservation, DetectedPattern,
     AnalysisResult, ObservationType
 )
@@ -49,7 +49,7 @@ async def test_pattern_detector():
         print(f"✓ Generated signatures: {signatures}")
         
         # Test confidence calculation
-        from langfuse_patterns import PatternType
+        from langfuse.langfuse_patterns import PatternType
         confidence = detector.calculate_confidence(
             PatternType.STATE_LOSS,
             {"state_changes": 5, "continuity_failures": 2}
