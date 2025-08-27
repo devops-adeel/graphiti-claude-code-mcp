@@ -1,0 +1,26 @@
+# Test runner Dockerfile for Langfuse MCP integration tests
+FROM python:3.11-slim
+
+WORKDIR /app
+
+# Install redis-cli for health checks
+RUN apt-get update && apt-get install -y redis-tools && \
+    rm -rf /var/lib/apt/lists/*
+
+# Copy requirements and install dependencies
+COPY requirements.txt ./
+RUN pip install --no-cache-dir -r requirements.txt && \
+    pip install pytest pytest-asyncio pytest-cov
+
+# Copy the entire project
+COPY . .
+
+# Set environment variables for testing
+ENV PYTHONPATH=/app
+ENV LOG_LEVEL=ERROR
+ENV FALKORDB_HOST=falkordb.local
+ENV FALKORDB_PORT=6379
+ENV LANGFUSE_HOST=langfuse.local
+
+# Default command runs all tests
+CMD ["python", "-m", "pytest", "tests/test_langfuse*.py", "-v"]

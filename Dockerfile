@@ -19,6 +19,10 @@ COPY capture.py ./
 COPY commands.py ./
 COPY mcp_server.py ./
 COPY mcp_stdio_wrapper.py ./
+COPY langfuse_analyzer.py ./
+COPY langfuse_patterns.py ./
+COPY langfuse_models.py ./
+COPY analyze_langfuse_traces.py ./
 
 # Copy test directory
 COPY tests/ ./tests/

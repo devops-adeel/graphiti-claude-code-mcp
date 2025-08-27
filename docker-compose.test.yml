@@ -1,0 +1,74 @@
+version: '3.8'
+
+services:
+  # Test runner service
+  test-runner:
+    build:
+      context: .
+      dockerfile: Dockerfile.test
+    container_name: langfuse-mcp-tests
+    environment:
+      # Shared configuration with GTD Coach
+      - GRAPHITI_GROUP_ID=${GRAPHITI_GROUP_ID:-shared_gtd_knowledge}
+      # Using OrbStack custom domain for container-to-container communication
+      - FALKORDB_HOST=falkordb.local
+      - FALKORDB_PORT=6379
+      - FALKORDB_DATABASE=${FALKORDB_DATABASE:-shared_knowledge_graph}
+      
+      # OpenAI Configuration
+      - OPENAI_API_KEY=${OPENAI_API_KEY}
+      - OPENAI_MODEL=${OPENAI_MODEL:-gpt-4o-mini}
+      - OPENAI_EMBEDDING_MODEL=${OPENAI_EMBEDDING_MODEL:-text-embedding-3-small}
+      
+      # Memory Configuration
+      - MEMORY_DECAY_FACTOR=${MEMORY_DECAY_FACTOR:-0.95}
+      - MEMORY_INCLUDE_HISTORICAL=${MEMORY_INCLUDE_HISTORICAL:-false}
+      - ENABLE_GTD_INTEGRATION=${ENABLE_GTD_INTEGRATION:-true}
+      - ENABLE_CROSS_REFERENCES=${ENABLE_CROSS_REFERENCES:-true}
+      
+      # Langfuse Configuration (if available)
+      - LANGFUSE_PUBLIC_KEY=${LANGFUSE_PUBLIC_KEY}
+      - LANGFUSE_SECRET_KEY=${LANGFUSE_SECRET_KEY}
+      - LANGFUSE_HOST=langfuse.local
+      
+      # Test Configuration
+      - PYTEST_ARGS=${PYTEST_ARGS:--v}
+      - TEST_SUITE=${TEST_SUITE:-all}
+      - LOG_LEVEL=ERROR
+    
+    volumes:
+      # Mount local code for development
+      - .:/app
+      # Mount shared .env.graphiti
+      - ${HOME}/gtd-coach/.env.graphiti:/app/.env.graphiti:ro
+      - ${HOME}/.env:/root/.env:ro
+    
+    networks:
+      - graphiti-network
+      - langfuse_default
+    
+    command: >
+      sh -c "
+        echo 'Waiting for FalkorDB...' &&
+        until redis-cli -h falkordb.local ping; do
+          echo 'Waiting for FalkorDB at falkordb.local...'
+          sleep 2
+        done &&
+        echo 'FalkorDB is ready!' &&
+        echo 'Running tests...' &&
+        if [ '${TEST_SUITE}' = 'protocol' ]; then
+          python -m pytest tests/test_langfuse_mcp_protocol.py ${PYTEST_ARGS}
+        elif [ '${TEST_SUITE}' = 'integration' ]; then
+          python -m pytest tests/test_langfuse_e2e.py ${PYTEST_ARGS}
+        else
+          python -m pytest tests/test_langfuse*.py ${PYTEST_ARGS}
+        fi
+      "
+    
+
+networks:
+  graphiti-network:
+    name: graphiti-network
+    external: false
+  langfuse_default:
+    external: true

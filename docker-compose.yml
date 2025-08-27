@@ -8,12 +8,13 @@ services:
       dockerfile: Dockerfile
     container_name: graphiti-claude-code-mcp
     environment:
-      # Shared configuration with GTD Coach
-      - GRAPHITI_GROUP_ID=${GRAPHITI_GROUP_ID:-shared_gtd_knowledge}
+      # CRITICAL: Must match GTD Coach for bi-directional knowledge sharing
+      - GRAPHITI_GROUP_ID=${GRAPHITI_GROUP_ID:-shared_knowledge}
       # Using OrbStack custom domain for container-to-container communication
       - FALKORDB_HOST=${FALKORDB_HOST:-falkordb.local}
       - FALKORDB_PORT=${FALKORDB_PORT:-6379}
-      - FALKORDB_DATABASE=${FALKORDB_DATABASE:-shared_knowledge_graph}
+      # CRITICAL: Must use same database as GTD Coach
+      - FALKORDB_DATABASE=${FALKORDB_DATABASE:-shared_gtd_knowledge}
       
       # OpenAI Configuration
       - OPENAI_API_KEY=${OPENAI_API_KEY}
@@ -25,6 +26,11 @@ services:
       - MEMORY_INCLUDE_HISTORICAL=${MEMORY_INCLUDE_HISTORICAL:-false}
       - ENABLE_GTD_INTEGRATION=${ENABLE_GTD_INTEGRATION:-true}
       - ENABLE_CROSS_REFERENCES=${ENABLE_CROSS_REFERENCES:-true}
+      
+      # Langfuse Configuration
+      - LANGFUSE_PUBLIC_KEY=${LANGFUSE_PUBLIC_KEY}
+      - LANGFUSE_SECRET_KEY=${LANGFUSE_SECRET_KEY}
+      - LANGFUSE_HOST=https://langfuse.local
       
       # MCP Server Configuration
       - MCP_SERVER_NAME=graphiti-claude-code-mcp
@@ -52,12 +58,12 @@ services:
     depends_on:
       - falkordb-check
     
-    healthcheck:
-      test: ["CMD", "python", "-c", "import asyncio; from graphiti_memory import get_shared_memory; asyncio.run(get_shared_memory())"]
-      interval: 30s
-      timeout: 10s
-      retries: 3
-      start_period: 40s
+    # healthcheck:
+    #   test: ["CMD", "python", "-c", "import asyncio; from graphiti_memory import get_shared_memory; asyncio.run(get_shared_memory())"]
+    #   interval: 30s
+    #   timeout: 10s
+    #   retries: 3
+    #   start_period: 40s
 
   # Health check service to ensure FalkorDB is available
   falkordb-check:
@@ -81,4 +87,4 @@ networks:
     external: false
 
 # Note: This compose file assumes FalkorDB is already running via OrbStack
-# on port 6380 as configured in /Users/adeel/Documents/1_projects/falkordb/docker-compose.yml
+# on port 6379 as configured in /Users/adeel/Documents/1_projects/falkordb/docker-compose.yml
