@@ -39,6 +39,15 @@ from langfuse import Langfuse
 from .langfuse_patterns import PatternDetector
 from graphiti_memory import get_shared_memory
 
+# Import SSL configuration
+try:
+    from ssl_config import create_langfuse_httpx_client, get_ssl_config
+
+    SSL_CONFIG_AVAILABLE = True
+except ImportError:
+    logger.warning("SSL configuration module not available")
+    SSL_CONFIG_AVAILABLE = False
+
 logger = logging.getLogger(__name__)
 
 
@@ -49,7 +58,7 @@ class LangfuseAnalyzer:
     """
 
     def __init__(self):
-        """Initialize Langfuse analyzer with API credentials"""
+        """Initialize Langfuse analyzer with API credentials and SSL configuration"""
         self.public_key = os.getenv("LANGFUSE_PUBLIC_KEY")
         self.secret_key = os.getenv("LANGFUSE_SECRET_KEY")
         self.host = os.getenv("LANGFUSE_HOST", "https://cloud.langfuse.com")
@@ -58,8 +67,22 @@ class LangfuseAnalyzer:
             logger.warning("Langfuse API keys not configured")
             self.client = None
         else:
+            # Configure httpx client with proper SSL settings
+            httpx_client = None
+            if SSL_CONFIG_AVAILABLE:
+                try:
+                    httpx_client = create_langfuse_httpx_client(timeout=30.0)
+                    ssl_config = get_ssl_config()
+                    logger.info(f"SSL configuration: {ssl_config}")
+                except Exception as e:
+                    logger.warning(f"Failed to configure SSL: {e}, using defaults")
+
+            # Initialize Langfuse client with SSL-configured httpx client
             self.client = Langfuse(
-                public_key=self.public_key, secret_key=self.secret_key, host=self.host
+                public_key=self.public_key,
+                secret_key=self.secret_key,
+                host=self.host,
+                httpx_client=httpx_client,  # Use configured client or None for default
             )
             # Tag all traces from this client as MCP-internal to prevent analysis loops
             # This ensures we can monitor the MCP server while preventing it from analyzing itself

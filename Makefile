@@ -98,6 +98,8 @@ show-secrets: ## Show secret references (not actual secrets)
 build: ## Build Docker image
 	@echo "$(BLUE)Building Docker image...$(NC)"
 	@docker compose build --no-cache
+	@# Tag the image with the expected name for the wrapper script
+	@docker tag graphiti-claude-code-mcp-graphiti-mcp:latest $(DOCKER_IMAGE) 2>/dev/null || true
 	@echo "$(GREEN)✅ Image built: $(DOCKER_IMAGE)$(NC)"
 
 .PHONY: up
@@ -213,6 +215,13 @@ clean-all: clean ## Clean everything including Service Account token
 	@rm -f $(SERVICE_TOKEN_FILE)
 	@echo "$(GREEN)✅ All configurations removed$(NC)"
 
+.PHONY: clean-images
+clean-images: ## Remove old Docker images
+	@echo "$(BLUE)Cleaning up old Docker images...$(NC)"
+	@# Remove all graphiti-mcp images except the latest graphiti-mcp-server
+	@docker images | grep graphiti | grep -v "graphiti-mcp-server.*latest" | awk '{print $$3}' | xargs -r docker rmi -f 2>/dev/null || true
+	@echo "$(GREEN)✅ Old images cleaned$(NC)"
+
 # === Information ===
 
 .PHONY: info
@@ -240,6 +249,22 @@ version: ## Show versions
 	@echo "  1Password CLI: $$(op --version 2>/dev/null || echo 'Not installed')"
 	@echo "  Project: $(PROJECT_NAME)"
 
+# === Claude Code Integration ===
+
+.PHONY: claude-setup
+claude-setup: build verify-config test-1password ## Complete setup for Claude Code
+	@echo "$(BLUE)Setting up for Claude Code...$(NC)"
+	@./scripts/verify-mcp-ready.sh
+	@echo ""
+	@echo "$(GREEN)Next steps:$(NC)"
+	@echo "1. Run the command shown above to add the MCP server"
+	@echo "2. Restart Claude Code"
+	@echo "3. Test with: 'Search your memory for recent patterns'"
+
+.PHONY: claude-test
+claude-test: ## Test MCP server readiness for Claude Code
+	@./scripts/verify-mcp-ready.sh
+
 # === Development ===
 
 .PHONY: shell
@@ -255,3 +280,69 @@ rebuild: down build up ## Rebuild and restart
 
 .PHONY: rebuild-secure
 rebuild-secure: down build up-secure ## Rebuild and restart with 1Password
+
+# === SSL & Langfuse Diagnostics ===
+
+.PHONY: ssl-check
+ssl-check: ## Check SSL configuration
+	@echo "$(BLUE)Checking SSL configuration...$(NC)"
+	@python ssl_config.py https://langfuse.local || true
+	@echo ""
+	@echo "$(BLUE)SSL Config Details:$(NC)"
+	@python -c "from ssl_config import get_ssl_config; c=get_ssl_config(); import json; print(json.dumps(c.get_info(), indent=2))"
+
+.PHONY: langfuse-health
+langfuse-health: ## Run Langfuse connection health check
+	@echo "$(BLUE)Running Langfuse health check...$(NC)"
+	@python scripts/health_check_langfuse.py
+
+.PHONY: langfuse-health-verbose
+langfuse-health-verbose: ## Run verbose Langfuse health check with debugging
+	@echo "$(BLUE)Running verbose Langfuse health check...$(NC)"
+	@python scripts/health_check_langfuse.py --verbose
+
+.PHONY: test-langfuse-local
+test-langfuse-local: ## Test Langfuse connection locally
+	@echo "$(BLUE)Testing Langfuse connection locally...$(NC)"
+	@export LANGFUSE_HOST=https://langfuse.local && \
+	export LANGFUSE_PUBLIC_KEY=$$(op item get ctyxybforywkjp2krbdpeulzzq --fields "Langfuse.langfuse-public-key" 2>/dev/null) && \
+	export LANGFUSE_SECRET_KEY=$$(op item get ctyxybforywkjp2krbdpeulzzq --fields "Langfuse.langfuse-secret-key" 2>/dev/null) && \
+	python -c "from ssl_config import create_langfuse_httpx_client; from langfuse import Langfuse; import os; \
+	client = Langfuse(public_key=os.getenv('LANGFUSE_PUBLIC_KEY'), secret_key=os.getenv('LANGFUSE_SECRET_KEY'), \
+	host=os.getenv('LANGFUSE_HOST'), httpx_client=create_langfuse_httpx_client()); \
+	result = client.api.trace.list(limit=1); \
+	print('✅ Connected successfully!'); \
+	print(f'Found {len(result.data)} traces')"
+
+.PHONY: test-langfuse-docker
+test-langfuse-docker: ## Test Langfuse connection from Docker container
+	@echo "$(BLUE)Testing Langfuse connection from Docker...$(NC)"
+	@docker run --rm \
+		--network langfuse-prod_default \
+		-e LANGFUSE_HOST=http://langfuse-web:3000 \
+		-e LANGFUSE_PUBLIC_KEY=$$(op item get ctyxybforywkjp2krbdpeulzzq --fields "Langfuse.langfuse-public-key" 2>/dev/null) \
+		-e LANGFUSE_SECRET_KEY=$$(op item get ctyxybforywkjp2krbdpeulzzq --fields "Langfuse.langfuse-secret-key" 2>/dev/null) \
+		-v $(PWD):/app \
+		-w /app \
+		$(DOCKER_IMAGE) \
+		python scripts/health_check_langfuse.py
+
+.PHONY: fix-ssl
+fix-ssl: ## Apply SSL certificate fixes
+	@echo "$(BLUE)Applying SSL certificate fixes...$(NC)"
+	@echo "$(YELLOW)1. Checking for OrbStack certificate...$(NC)"
+	@if [ -f /usr/local/share/ca-certificates/orbstack-root.crt ]; then \
+		echo "$(GREEN)✅ OrbStack certificate found$(NC)"; \
+		export SSL_CERT_FILE=/usr/local/share/ca-certificates/orbstack-root.crt; \
+		echo "$(GREEN)✅ Set SSL_CERT_FILE=$(NC)"; \
+	else \
+		echo "$(YELLOW)⚠️  OrbStack certificate not found$(NC)"; \
+	fi
+	@echo ""
+	@echo "$(YELLOW)2. Setting Langfuse environment...$(NC)"
+	@echo "export LANGFUSE_HOST=https://langfuse.local"
+	@echo "export SSL_CERT_FILE=/usr/local/share/ca-certificates/orbstack-root.crt"
+	@echo ""
+	@echo "$(GREEN)Run these commands in your shell:$(NC)"
+	@echo "  export LANGFUSE_HOST=https://langfuse.local"
+	@echo "  export SSL_CERT_FILE=/usr/local/share/ca-certificates/orbstack-root.crt"
