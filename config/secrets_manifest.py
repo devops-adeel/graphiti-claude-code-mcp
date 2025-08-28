@@ -20,7 +20,7 @@ SECRET_REFS = {
 CONFIG_VALUES = {
     "GRAPHITI_GROUP_ID": "shared_knowledge",
     "FALKORDB_DATABASE": "shared_gtd_knowledge",
-    "FALKORDB_HOST": "falkordb",  # Use container name when running in Docker
+    # FALKORDB_HOST is now loaded from environment/config file
     "FALKORDB_PORT": "6379",
     "OPENAI_MODEL": "gpt-4o-mini",
     "OPENAI_EMBEDDING_MODEL": "text-embedding-3-small",

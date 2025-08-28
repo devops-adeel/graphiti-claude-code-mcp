@@ -31,6 +31,7 @@ fi
 
 # Run the Docker container with proper environment and mounts
 exec docker run -i --rm \
+  --network orbstack-shared \
   -e OP_SERVICE_ACCOUNT_TOKEN="$OP_SERVICE_ACCOUNT_TOKEN" \
   -v "$CONFIG_FILE:/app/.env.graphiti:ro" \
   --add-host host.docker.internal:host-gateway \
