@@ -20,7 +20,7 @@ footer = """
 # See https://keats.github.io/tera/docs/#introduction
 body = """
 {% if version %}\
-    ## [{{ version | trim_start_matches(pat="v") }}](https://github.com/yourusername/graphiti-claude-code-mcp/compare/{{ previous.version }}..{{ version }}) - {{ timestamp | date(format="%Y-%m-%d") }}
+    ## [{{ version | trim_start_matches(pat="v") }}](https://github.com/adeel/graphiti-claude-code-mcp/compare/{{ previous.version }}..{{ version }}) - {{ timestamp | date(format="%Y-%m-%d") }}
 {% else %}\
     ## [Unreleased]
 {% endif %}
@@ -41,7 +41,7 @@ render_always = true
 # An array of regex based postprocessors to modify the changelog.
 postprocessors = [
     # Replace the placeholder <REPO> with the actual GitHub URL.
-    { pattern = '<REPO>', replace = "https://github.com/yourusername/graphiti-claude-code-mcp" },
+    { pattern = '<REPO>', replace = "https://github.com/adeel/graphiti-claude-code-mcp" },
 ]
 
 [git]
