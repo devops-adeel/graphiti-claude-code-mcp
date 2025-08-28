@@ -12,7 +12,7 @@ repos:
         description: Detect secrets in your data before committing
         entry: bash -c 'if command -v trufflehog &> /dev/null; then trufflehog git file://. --since-commit HEAD --no-verification --fail; else echo "Warning - TruffleHog not installed. Install with brew install trufflehog"; fi'
         language: system
-        stages: ["commit", "push"]
+        stages: ["pre-commit", "pre-push"]
         pass_filenames: false
         always_run: true
 
@@ -48,10 +48,22 @@ repos:
         language_version: python3
         description: Format Python code with Black
 
-  # Security audit for Python dependencies
-  # Temporarily disabled due to pyproject.toml/requirements.txt conflict
-  # - repo: https://github.com/Lucas-C/pre-commit-hooks-safety
-  #   rev: v1.3.3
-  #   hooks:
-  #     - id: python-safety-dependencies-check
-  #       description: Check Python dependencies for known security vulnerabilities
+  # Sync dependencies from pyproject.toml to requirements.txt
+  - repo: local
+    hooks:
+      - id: sync-dependencies
+        name: Sync dependencies
+        description: Keep requirements.txt in sync with pyproject.toml
+        entry: python3 scripts/sync-dependencies.py
+        language: system
+        files: ^pyproject\.toml$
+        pass_filenames: false
+
+  # Security audit for Python dependencies using pip-audit
+  - repo: https://github.com/pypa/pip-audit
+    rev: v2.9.0
+    hooks:
+      - id: pip-audit
+        description: Check Python dependencies for known security vulnerabilities
+        args: ["--desc", "--fix", "--dry-run"]
+        # pip-audit supports both pyproject.toml and requirements.txt natively

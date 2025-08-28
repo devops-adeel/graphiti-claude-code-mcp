@@ -1,4 +1,5 @@
-# Core dependencies
+# Core dependencies (auto-generated from pyproject.toml)
+# DO NOT EDIT MANUALLY - use: python scripts/sync-dependencies.py
 graphiti-core[falkordb]>=0.17.7,<0.17.10
 python-dotenv>=1.0.0
 mcp>=0.1.0
@@ -6,8 +7,12 @@ pydantic>=2.0.0
 asyncio>=3.4.3
 tiktoken>=0.5.0
 langfuse>=3.3.0
+onepassword-sdk==0.1.3
 
-# Additional dependencies for testing
+# Development dependencies
 pytest>=7.0.0
 pytest-asyncio>=0.21.0
 pytest-cov>=4.0.0
+ruff>=0.1.0
+pip-audit>=2.9.0
+pre-commit>=4.0.0

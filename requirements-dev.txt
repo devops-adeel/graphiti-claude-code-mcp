@@ -1,0 +1,8 @@
+# Development dependencies (auto-generated from pyproject.toml)
+-r requirements.txt
+pytest>=7.0.0
+pytest-asyncio>=0.21.0
+pytest-cov>=4.0.0
+ruff>=0.1.0
+pip-audit>=2.9.0
+pre-commit>=4.0.0
