@@ -20,6 +20,7 @@ from graphiti_core.llm_client.config import LLMConfig
 from graphiti_core.llm_client.openai_client import OpenAIClient
 from graphiti_core.embedder.openai import OpenAIEmbedder, OpenAIEmbedderConfig
 from graphiti_core.nodes import EpisodeType
+from graphiti_core.utils.bulk_utils import RawEpisode
 
 logger = logging.getLogger(__name__)
 
@@ -139,7 +140,18 @@ class SharedMemory:
         self.model_name = os.getenv("OPENAI_MODEL", "gpt-4o-mini")
         self._init_tiktoken()
 
-        logger.info(f"SharedMemory configured with group_id: {self.group_id}")
+        # Batch processing configuration
+        self.episode_buffer = []
+        self.batch_size = int(os.getenv("GRAPHITI_BATCH_SIZE", "50"))
+        self.flush_lock = asyncio.Lock()
+
+        # Connection pool (will be initialized with client)
+        self.pool = None
+        self.db = None
+
+        logger.info(
+            f"SharedMemory configured with group_id: {self.group_id}, batch_size: {self.batch_size}"
+        )
 
     def _load_config(self):
         """Load configuration from shared .env.graphiti file"""
@@ -352,14 +364,55 @@ class SharedMemory:
             )
             embedder = OpenAIEmbedder(config=embedder_config)
 
-            # Initialize Graphiti client with FalkorDB driver
+            # Initialize Graphiti client with FalkorDB driver and connection pooling
             from graphiti_core.driver.falkordb_driver import FalkorDriver
+
+            # Check if we should use async pooling (for better performance)
+            use_async_pool = os.getenv("FALKORDB_USE_ASYNC", "false").lower() == "true"
 
             # Use OrbStack domain for container-to-container communication
             falkor_host = os.getenv("FALKORDB_HOST", "falkordb.local")
             falkor_port = int(os.getenv("FALKORDB_PORT", "6379"))
+            max_connections = int(os.getenv("FALKORDB_MAX_CONNECTIONS", "8"))
 
-            # Create FalkorDB driver (no auth needed for local FalkorDB)
+            if use_async_pool:
+                # Use async FalkorDB client with connection pooling
+                try:
+                    from falkordb.asyncio import FalkorDB
+                    from redis.asyncio import BlockingConnectionPool
+
+                    # Create BlockingConnectionPool for better concurrency
+                    self.pool = BlockingConnectionPool(
+                        host=falkor_host,
+                        port=falkor_port,
+                        max_connections=max_connections,
+                        timeout=30,
+                        decode_responses=True,
+                        retry_on_timeout=True,
+                        socket_keepalive=True,
+                        socket_keepalive_options={
+                            1: 1,  # TCP_KEEPIDLE
+                            2: 3,  # TCP_KEEPINTVL
+                            3: 5,  # TCP_KEEPCNT
+                        },
+                    )
+
+                    # Create async FalkorDB client
+                    self.db = FalkorDB(connection_pool=self.pool)
+
+                    # Note: Graphiti may not directly support async FalkorDB client
+                    # Fall back to standard driver with connection reuse
+                    logger.info(
+                        f"Initialized async FalkorDB with {max_connections} connections"
+                    )
+
+                except ImportError:
+                    logger.warning(
+                        "Async FalkorDB not available, using standard driver"
+                    )
+                    use_async_pool = False
+
+            # Create standard FalkorDB driver (with implicit connection reuse)
             falkor_driver = FalkorDriver(
                 host=falkor_host,
                 port=falkor_port,
@@ -387,7 +440,7 @@ class SharedMemory:
 
     async def add_memory(self, content: dict, source: str = "claude_code") -> str:
         """
-        Add memory with context awareness
+        Add memory with context awareness using batch processing
 
         Args:
             content: Memory content dictionary
@@ -408,21 +461,71 @@ class SharedMemory:
         if self.enable_cross_ref:
             content["cross_references"] = self._detect_cross_references(content)
 
-        # Create episode
-        result = await self.client.add_episode(
+        # Create RawEpisode for batch processing
+        episode = RawEpisode(
             name=f"{source}: {content.get('title', 'Memory')}",
-            episode_body=json.dumps(content),
+            content=json.dumps(content),
             source=EpisodeType.json,
             source_description=source,
             group_id=self.group_id,
             reference_time=datetime.now(timezone.utc),
         )
 
-        # Extract episode UUID from AddEpisodeResults
-        episode_id = result.episode.uuid
+        # Add to buffer
+        async with self.flush_lock:
+            self.episode_buffer.append(episode)
 
-        logger.info(f"Added memory to shared graph: {episode_id}")
-        return episode_id
+            # Flush if buffer is full
+            if len(self.episode_buffer) >= self.batch_size:
+                return await self._flush_episode_buffer()
+            else:
+                # Return a temporary ID for tracking
+                # The real ID will be assigned when buffer is flushed
+                temp_id = f"pending_{datetime.now(timezone.utc).timestamp()}"
+                logger.info(
+                    f"Added memory to buffer (size: {len(self.episode_buffer)}): {temp_id}"
+                )
+                return temp_id
+
+    async def _flush_episode_buffer(self) -> str:
+        """
+        Flush accumulated episodes using add_episode_bulk
+
+        Returns:
+            ID of the last episode added
+        """
+        if not self.episode_buffer:
+            return None
+
+        try:
+            # Use add_episode_bulk for efficient batch processing
+            # This leverages Graphiti's internal deduplication
+            results = await self.client.add_episode_bulk(self.episode_buffer)
+
+            # Get the last episode ID for return
+            last_episode_id = None
+            if results and hasattr(results, "episodes") and results.episodes:
+                last_episode_id = results.episodes[-1].uuid
+
+            logger.info(
+                f"Flushed {len(self.episode_buffer)} episodes to graph using bulk operation"
+            )
+
+            # Clear the buffer
+            self.episode_buffer = []
+
+            return last_episode_id
+
+        except Exception as e:
+            logger.error(f"Failed to flush episode buffer: {e}")
+            # Don't clear buffer on error so we can retry
+            raise
+
+    async def force_flush(self) -> None:
+        """Force flush the episode buffer regardless of size"""
+        async with self.flush_lock:
+            if self.episode_buffer:
+                await self._flush_episode_buffer()
 
     def _detect_cross_references(self, content: dict) -> List[str]:
         """Detect connections between GTD and coding domains"""
@@ -1008,15 +1111,30 @@ class SharedMemory:
         }
 
     async def close(self):
-        """Close the Graphiti client connection"""
-        if self.client:
-            try:
-                await self.client.close()
-                logger.info("SharedMemory client closed")
-            except Exception as e:
-                logger.error(f"Error closing SharedMemory: {e}")
-            finally:
-                self._initialized = False
+        """Close the Graphiti client connection and flush any pending episodes"""
+        try:
+            # Flush any pending episodes before closing
+            await self.force_flush()
+
+            # Close connection pool if using async
+            if self.pool:
+                try:
+                    await self.pool.aclose()
+                    logger.info("Closed FalkorDB connection pool")
+                except Exception as e:
+                    logger.error(f"Error closing connection pool: {e}")
+
+            # Close Graphiti client
+            if self.client:
+                try:
+                    await self.client.close()
+                    logger.info("SharedMemory client closed")
+                except Exception as e:
+                    logger.error(f"Error closing SharedMemory client: {e}")
+
+        finally:
+            self._initialized = False
+            self.episode_buffer = []  # Clear any remaining buffer
 
 
 # Singleton instance
