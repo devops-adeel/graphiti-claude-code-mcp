@@ -418,7 +418,11 @@ pytest-watch tests/
 ### Docker Development
 
 ```bash
-# Build and start
+# Build and start (requires sourcing 1Password token)
+./scripts/docker-compose-with-token.sh up --build
+
+# Or manually source token first:
+source ~/.config/graphiti-mcp/service-token
 docker compose up --build
 
 # View logs
@@ -428,10 +432,12 @@ docker compose logs -f
 docker compose exec graphiti-mcp bash
 
 # Rebuild clean
-docker compose down
-docker compose build --no-cache
-docker compose up
+./scripts/docker-compose-with-token.sh down
+./scripts/docker-compose-with-token.sh build --no-cache
+./scripts/docker-compose-with-token.sh up
 ```
+
+**Note**: The 1Password service token must be sourced before running Docker commands. The wrapper script `scripts/docker-compose-with-token.sh` handles this automatically.
 
 ## Troubleshooting
 
