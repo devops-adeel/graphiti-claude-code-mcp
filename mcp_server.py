@@ -54,6 +54,15 @@ AUTOMATIC BEHAVIORS:
 • For complex tasks: Proactively search for cross-domain insights between GTD and coding
 • During debugging: Auto-capture insights and failed solutions
 
+PLAN MODE EXIT BEHAVIOR:
+• On ExitPlanMode: Execute layered memory search before any external lookups
+  - Layer 1: Exact task match (e.g., "docker orbstack ssl")
+  - Layer 2: Related concepts (e.g., "containerization", "deployment")
+  - Layer 3: Cross-domain GTD insights
+• Apply memories contextually without explicit listing
+• Probe for hidden requirements based on memory findings
+• Ask thoughtful clarifying questions one at a time, wait for complete answers
+
 MEMORY USAGE:
 • Confidence > 0.7: Apply automatically
 • Confidence 0.5-0.7: Mention and ask for confirmation
@@ -73,9 +82,20 @@ MEMORY CAPTURE:
 • Supersede old solutions while preserving learning trail
 • Mark 30+ day old memories as HISTORICAL
 
+SESSION SUMMARY PROTOCOL:
+• Generate hybrid summary on: SessionEnd, PreCompact, or explicit request
+• Format: Brief narrative + structured sections
+  - Problems Solved: Solutions with confidence scores
+  - Patterns Discovered: Reusable insights
+  - GTD Progress: Tasks advanced/completed
+  - New GTD Items: Discovered follow-ups
+• Auto-link to active GTD contexts
+• Request user confirmation before persisting
+
 TOOLS:
 • capture_solution: Capture coding solutions and fixes
 • capture_tdd_pattern: Record TDD red-green-refactor cycles
+• capture_session_summary: Capture comprehensive session summary
 • search_memory: Search the knowledge graph with temporal weighting
 • find_cross_insights: Discover cross-domain connections
 • get_gtd_context: Retrieve current GTD tasks and projects
@@ -97,6 +117,7 @@ RESOURCES:
 • memory://gtd-context: Current GTD tasks and projects
 • memory://patterns: Captured coding patterns and solutions
 • memory://commands: Generated Claude Code commands
+• memory://session-summaries: Historical session summaries
 • langfuse://traces: Recent trace data from the last 24 hours
 • langfuse://patterns: Detected patterns from traces stored in Graphiti
 • langfuse://sessions: Active session information

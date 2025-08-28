@@ -364,6 +364,83 @@ class PatternCapture:
         logger.info(f"Captured command pattern: {memory_id}")
         return memory_id
 
+    async def capture_session_summary(
+        self,
+        narrative: str,
+        problems_solved: List[Dict[str, Any]],
+        patterns_discovered: List[Dict[str, Any]],
+        gtd_connections: List[str],
+        follow_up_items: List[str],
+        user_confirmed: bool = False,
+    ) -> str:
+        """
+        Capture comprehensive session summary with GTD integration
+
+        Args:
+            narrative: Brief narrative overview of the session
+            problems_solved: List of problems solved with solutions
+            patterns_discovered: Reusable insights discovered
+            gtd_connections: GTD contexts referenced
+            follow_up_items: New tasks discovered
+            user_confirmed: Whether user has confirmed the summary
+
+        Returns:
+            Memory ID
+        """
+        # Create a structured summary
+        summary_data = {
+            "type": "session_summary",
+            "title": f"Session Summary: {datetime.now(timezone.utc).strftime('%Y-%m-%d %H:%M')}",
+            "narrative": narrative,
+            "problems_solved": json.dumps(problems_solved[:10]),  # Limit and serialize
+            "patterns_discovered": json.dumps(
+                patterns_discovered[:10]
+            ),  # Limit and serialize
+            "gtd_connections": (
+                ", ".join(gtd_connections[:10]) if gtd_connections else None
+            ),
+            "follow_up_items": (
+                json.dumps(follow_up_items[:10]) if follow_up_items else None
+            ),
+            "user_confirmed": user_confirmed,
+            "timestamp": datetime.now(timezone.utc).isoformat(),
+            "gtd_link": (
+                "session_summary " + " ".join(gtd_connections[:3])
+                if gtd_connections
+                else "session_summary"
+            ),
+        }
+
+        # Check for existing session summary from the same day
+        today = datetime.now(timezone.utc).strftime("%Y-%m-%d")
+        existing = await self.memory.search_with_temporal_weight(
+            f"session_summary {today}", filter_source="claude_code"
+        )
+
+        if existing and getattr(existing[0], "final_score", 0) > 0.8:
+            # Multiple sessions in one day - append or supersede
+            old_id = existing[0].metadata.get("id") or getattr(existing[0], "id", None)
+            if old_id:
+                memory_id = await self.memory.supersede_memory(
+                    old_id, summary_data, f"Updated session summary for {today}"
+                )
+                logger.info(f"Updated session summary {old_id} with {memory_id}")
+            else:
+                memory_id = await self.memory.add_memory(
+                    summary_data, source="claude_code"
+                )
+        else:
+            # New session summary
+            memory_id = await self.memory.add_memory(summary_data, source="claude_code")
+            logger.info(f"Captured session summary: {memory_id}")
+
+        # Link to GTD tasks if connections exist
+        if gtd_connections:
+            for gtd_ref in gtd_connections[:3]:  # Link to top 3 GTD references
+                await self.link_to_gtd_task(memory_id, gtd_ref)
+
+        return memory_id
+
     async def link_to_gtd_task(
         self, memory_id: str, task_description: str
     ) -> Optional[str]:
