@@ -114,8 +114,8 @@ class SharedMemory:
         self._load_config()
 
         # CRITICAL: Use same group_id as GTD Coach for shared knowledge
-        self.group_id = os.getenv("GRAPHITI_GROUP_ID", "shared_gtd_knowledge")
-        self.database = os.getenv("FALKORDB_DATABASE", "shared_knowledge_graph")
+        self.group_id = os.getenv("GRAPHITI_GROUP_ID", "shared_knowledge")
+        self.database = os.getenv("FALKORDB_DATABASE", "shared_knowledge")
 
         # Memory configuration
         self.decay_factor = float(os.getenv("MEMORY_DECAY_FACTOR", "0.95"))
