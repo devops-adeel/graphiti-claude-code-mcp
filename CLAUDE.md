@@ -159,6 +159,46 @@ await capture.capture_command_pattern(
 )
 ```
 
+### Session Summary
+```python
+await capture.capture_session_summary(
+    narrative="Session focused on Docker operations with 42 interactions",
+    problems_solved=[
+        {"description": "Fixed SSL cert issue", "solution": "Updated cert path", "confidence": 0.9}
+    ],
+    patterns_discovered=[
+        {"type": "docker", "description": "Multi-stage build pattern", "reusable": True}
+    ],
+    gtd_connections=["@computer", "@deployment-project"],
+    follow_up_items=["Add health checks to containers", "Update documentation"],
+    user_confirmed=True
+)
+```
+
+## Claude Code Behavior Enhancements
+
+### Memory-First Plan Mode Exit
+When exiting plan mode, Claude Code now:
+1. Performs layered memory search before external lookups
+2. Searches exact task → related concepts → cross-domain insights
+3. Applies high-confidence memories contextually
+4. Probes for hidden requirements based on findings
+5. Asks clarifying questions one at a time, waiting for complete answers
+
+### Automatic Session Summaries
+Session summaries are generated automatically on:
+- Session end (clean exit)
+- Pre-compaction (preserving context)
+- Explicit request
+
+The hybrid format includes:
+- Brief narrative overview
+- Problems solved with confidence scores
+- Patterns discovered for reuse
+- GTD progress tracking
+- New GTD items discovered
+- Cross-references to related memories
+
 ## Integration with GTD Coach
 
 ### Shared Memories
@@ -202,7 +242,7 @@ The health check verifies:
 7. Cross-domain linking
 
 See `scripts/health_check_memory.py` for implementation details.
-Full troubleshooting guide: `docs/TROUBLESHOOTING.md`
+Full troubleshooting guide: `docs/how-to/troubleshoot-common-issues.md`
 
 ## Troubleshooting
 
