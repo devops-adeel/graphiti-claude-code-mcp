@@ -79,12 +79,12 @@ fi
 echo ""
 echo -e "${BLUE}4. Verifying Docker network...${NC}"
 
-if docker network ls --format "{{.Name}}" | grep -q "^falkordb_default$"; then
-    echo -e "${GREEN}✅ Network falkordb_default exists${NC}"
+if docker network ls --format "{{.Name}}" | grep -q "^orbstack-shared$"; then
+    echo -e "${GREEN}✅ Network orbstack-shared exists${NC}"
 else
-    echo -e "${RED}❌ Network falkordb_default not found${NC}"
+    echo -e "${RED}❌ Network orbstack-shared not found${NC}"
     echo "Available networks:"
-    docker network ls --format "{{.Name}}" | grep -E "falkor|graphiti"
+    docker network ls --format "{{.Name}}" | grep -E "orbstack|shared"
     exit 1
 fi
 

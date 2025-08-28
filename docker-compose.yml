@@ -96,7 +96,7 @@ services:
 
 networks:
   graphiti-network:
-    name: falkordb_default
+    name: orbstack-shared
     external: true
 
 # Note: This compose file assumes FalkorDB is already running via OrbStack

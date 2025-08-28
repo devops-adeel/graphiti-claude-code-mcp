@@ -99,3 +99,11 @@ topo_order_commits = true
 sort_commits = "oldest"
 # Process submodules commits
 recurse_submodules = false
+
+[bump]
+# Automatic version bumping configuration
+features_always_bump_minor = true
+breaking_always_bump_major = true
+initial_tag = "0.1.0"
+# Custom regex for infrastructure changes
+custom_minor_increment_regex = "infra|infrastructure|docker"

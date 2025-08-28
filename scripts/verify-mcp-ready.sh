@@ -105,11 +105,9 @@ echo ""
 echo "6. Checking network configuration..."
 if docker network ls | grep -q "orbstack-shared"; then
     echo "   ✅ OrbStack shared network exists"
-elif docker network ls | grep -q "falkordb_default"; then
-    echo "   ✅ FalkorDB network exists"
 else
-    echo "   ⚠️  Expected networks not found"
-    echo "      May need to start FalkorDB first"
+    echo "   ⚠️  OrbStack shared network not found"
+    echo "      Check that OrbStack is running"
 fi
 echo ""
 
