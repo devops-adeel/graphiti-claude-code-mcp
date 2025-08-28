@@ -31,6 +31,14 @@ services:
       - MCP_SERVER_NAME=graphiti-claude-code-mcp
       - LOG_LEVEL=${LOG_LEVEL:-INFO}
 
+      # Langfuse Configuration (Non-secret values)
+      - LANGFUSE_HOST=${LANGFUSE_HOST:-https://langfuse.local}
+      - LANGFUSE_TRACING_ENABLED=${LANGFUSE_TRACING_ENABLED:-true}
+
+      # SSL Configuration for OrbStack
+      - SSL_CERT_FILE=/usr/local/share/ca-certificates/orbstack-root.crt
+      - REQUESTS_CA_BUNDLE=/usr/local/share/ca-certificates/orbstack-root.crt
+
     volumes:
       # Mount local code for development
       - .:/app

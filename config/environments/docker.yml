@@ -1,0 +1,63 @@
+# Docker Environment Configuration
+# Standard Docker deployment without OrbStack
+
+environment: docker
+description: Standard Docker container environment
+
+# SSL Configuration
+ssl:
+  enabled: false  # Usually internal HTTP communication
+  verify: false
+  certificate_path: null
+  auto_detect: false
+
+# Langfuse Configuration
+langfuse:
+  # Use HTTP for internal Docker network communication
+  host: http://langfuse-web:3000
+
+  # Alternative hosts for different scenarios
+  alternative_hosts:
+    - http://langfuse-web:3000
+    - http://langfuse:3000
+    - http://localhost:3000  # Host network mode
+
+  # Connection settings
+  timeout: 30
+  max_retries: 3
+
+  # API credentials
+  credentials:
+    source: environment
+    fallback_to_1password: true
+
+# Network Configuration
+network:
+  # Standard Docker networking
+  custom_dns: false
+
+  # Default Docker network name
+  docker_network: graphiti-network
+
+  # Health check endpoints
+  health_check_urls:
+    - http://langfuse-web:3000/api/health
+    - http://langfuse:3000/api/health
+
+# FalkorDB Configuration
+falkordb:
+  host: falkordb
+  port: 6379
+  database: shared_knowledge
+
+# Logging
+logging:
+  level: INFO
+  ssl_debug: false
+
+# Features
+features:
+  auto_ssl_detection: false
+  certificate_validation: false
+  connection_pooling: true
+  retry_on_ssl_error: false

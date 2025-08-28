@@ -1,0 +1,63 @@
+# Cloud Environment Configuration
+# For production cloud deployments with proper SSL certificates
+
+environment: cloud
+description: Cloud deployment with valid SSL certificates
+
+# SSL Configuration
+ssl:
+  enabled: true
+  verify: true
+  certificate_path: null  # Use system certificates
+  auto_detect: false
+
+# Langfuse Configuration
+langfuse:
+  # Use HTTPS with proper domain
+  host: https://cloud.langfuse.com
+
+  # No alternative hosts in cloud
+  alternative_hosts: []
+
+  # Connection settings
+  timeout: 60  # Longer timeout for cloud
+  max_retries: 5  # More retries for network issues
+
+  # API credentials
+  credentials:
+    source: environment
+    required: true
+    fallback_to_1password: false
+
+# Network Configuration
+network:
+  custom_dns: false
+
+  # No Docker network in cloud
+  docker_network: null
+
+  # Health check endpoints
+  health_check_urls:
+    - https://cloud.langfuse.com/api/health
+
+# FalkorDB Configuration
+falkordb:
+  # Cloud Redis/FalkorDB instance
+  host: ${FALKORDB_CLOUD_HOST}
+  port: 6379
+  database: shared_knowledge
+  tls: true
+  auth: ${FALKORDB_AUTH_TOKEN}
+
+# Logging
+logging:
+  level: WARNING  # Less verbose in production
+  ssl_debug: false
+
+# Features
+features:
+  auto_ssl_detection: false
+  certificate_validation: true
+  connection_pooling: true
+  retry_on_ssl_error: false
+  rate_limiting: true

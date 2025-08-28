@@ -1,0 +1,64 @@
+# OrbStack Environment Configuration
+# This configuration is optimized for OrbStack on macOS with custom domains and SSL
+
+environment: orbstack
+description: OrbStack container environment with self-signed certificates
+
+# SSL Configuration
+ssl:
+  enabled: true
+  verify: true
+  certificate_path: /usr/local/share/ca-certificates/orbstack-root.crt
+  auto_detect: true
+
+# Langfuse Configuration
+langfuse:
+  # Use HTTPS with OrbStack custom domain
+  host: https://langfuse.local
+  # Alternative hosts for different network scenarios
+  alternative_hosts:
+    - https://langfuse.local
+    - https://langfuse-web.langfuse-prod.orb.local
+    - http://langfuse-web:3000  # Internal Docker network fallback
+
+  # Connection settings
+  timeout: 30
+  max_retries: 3
+
+  # API credentials (loaded from 1Password or environment)
+  credentials:
+    source: 1password
+    item_id: ctyxybforywkjp2krbdpeulzzq
+    fallback_to_env: true
+
+# Network Configuration
+network:
+  # OrbStack automatically provides DNS for .local domains
+  custom_dns: true
+  dns_suffix: .local
+
+  # Docker network for inter-container communication
+  docker_network: langfuse-prod_default
+
+  # Health check endpoints
+  health_check_urls:
+    - https://langfuse.local/api/health
+    - http://langfuse-web:3000/api/health
+
+# FalkorDB Configuration
+falkordb:
+  host: falkordb.local
+  port: 6379
+  database: shared_knowledge
+
+# Logging
+logging:
+  level: INFO
+  ssl_debug: true
+
+# Features
+features:
+  auto_ssl_detection: true
+  certificate_validation: true
+  connection_pooling: true
+  retry_on_ssl_error: true
