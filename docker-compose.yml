@@ -6,7 +6,8 @@ services:
       dockerfile: Dockerfile
     container_name: graphiti-claude-code-mcp
     environment:
-      # 1Password Service Account Token (from host environment or .env)
+      # 1Password Service Account Token (CRITICAL: must be passed to container)
+      # This is needed by the SDK inside the container, not just for op run
       - OP_SERVICE_ACCOUNT_TOKEN=${OP_SERVICE_ACCOUNT_TOKEN}
 
       # CRITICAL: Must match GTD Coach for bi-directional knowledge sharing
@@ -20,6 +21,9 @@ services:
       # Non-secret configuration values
       - OPENAI_MODEL=${OPENAI_MODEL:-gpt-4o-mini}
       - OPENAI_EMBEDDING_MODEL=${OPENAI_EMBEDDING_MODEL:-text-embedding-3-small}
+
+      # Fallback mode for when 1Password is unavailable
+      - GRAPHITI_FALLBACK_MODE=${GRAPHITI_FALLBACK_MODE:-false}
 
       # Memory Configuration
       - MEMORY_DECAY_FACTOR=${MEMORY_DECAY_FACTOR:-0.95}
@@ -56,7 +60,8 @@ services:
 
     command: python mcp_server.py
 
-    restart: unless-stopped
+    # Limit restart attempts to prevent rapid rate limit consumption
+    restart: on-failure:3
 
     depends_on:
       - falkordb-check

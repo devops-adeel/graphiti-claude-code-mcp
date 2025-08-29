@@ -65,10 +65,17 @@ class SecretsManager:
 
     async def _initialize(self):
         """
-        Async initialization with retry logic.
+        Async initialization with retry logic and fallback support.
         Called once during singleton creation.
         """
         if self._initialized:
+            return
+
+        # Check for fallback mode first
+        token = self._get_service_token()
+        if token is None:
+            # Fallback mode - load from .env.graphiti
+            await self._initialize_fallback()
             return
 
         max_retries = 3
@@ -76,8 +83,7 @@ class SecretsManager:
 
         for attempt in range(max_retries):
             try:
-                # Get and validate token
-                token = self._get_service_token()
+                # Validate token
                 await self._validate_token(token)
 
                 # Initialize 1Password client
@@ -104,12 +110,57 @@ class SecretsManager:
                     )
                     await asyncio.sleep(retry_delay * (2**attempt))
                 else:
-                    error_msg = (
-                        f"Failed to initialize 1Password SDK after "
-                        f"{max_retries} attempts: {e}"
+                    # Try fallback mode as last resort
+                    logger.warning(
+                        f"1Password SDK failed after {max_retries} attempts, trying fallback mode"
                     )
-                    logger.error(f"❌ {error_msg}")
-                    raise RuntimeError(error_msg)
+                    try:
+                        await self._initialize_fallback()
+                        return
+                    except Exception as fallback_e:
+                        error_msg = f"Failed to initialize 1Password SDK and fallback also failed: {fallback_e}"
+                        logger.error(f"❌ {error_msg}")
+                        raise RuntimeError(error_msg)
+
+    async def _initialize_fallback(self):
+        """
+        Initialize in fallback mode using .env.graphiti file.
+        """
+        logger.info("Initializing in fallback mode with .env.graphiti...")
+
+        # Try to load from .env.graphiti
+        env_file = Path(".env.graphiti")
+        if not env_file.exists():
+            # Try home directory location
+            env_file = Path.home() / "gtd-coach" / ".env.graphiti"
+
+        if env_file.exists():
+            try:
+                from dotenv import load_dotenv
+
+                load_dotenv(env_file)
+
+                # Load configuration values into environment
+                for key, value in CONFIG_VALUES.items():
+                    if key not in os.environ:
+                        os.environ[key] = value
+
+                # Check if critical secrets are available
+                if not os.getenv("OPENAI_API_KEY"):
+                    raise ValueError("OPENAI_API_KEY not found in .env.graphiti")
+
+                self._initialized = True
+                logger.info("✅ Initialized in fallback mode using .env.graphiti")
+
+            except Exception as e:
+                raise RuntimeError(f"Failed to load .env.graphiti: {e}")
+        else:
+            raise RuntimeError(
+                "Cannot initialize in fallback mode: .env.graphiti not found\n"
+                "Expected locations:\n"
+                "  - ./env.graphiti\n"
+                "  - ~/gtd-coach/.env.graphiti"
+            )
 
     def _get_service_token(self) -> str:
         """
@@ -147,10 +198,18 @@ class SecretsManager:
                     logger.error(f"Failed to read token file: {e}")
 
         if not token:
+            # Check if we should use fallback mode
+            if os.getenv("GRAPHITI_FALLBACK_MODE", "").lower() == "true":
+                logger.warning(
+                    "No 1Password token found, using fallback mode with .env.graphiti"
+                )
+                return None  # Signal to use fallback
+
             raise ValueError(
                 "No service account token found. Please either:\n"
                 "1. Set OP_SERVICE_ACCOUNT_TOKEN environment variable, or\n"
-                "2. Ensure ~/.config/graphiti-mcp/service-token exists"
+                "2. Ensure ~/.config/graphiti-mcp/service-token exists\n"
+                "3. Set GRAPHITI_FALLBACK_MODE=true to use .env.graphiti fallback"
             )
 
         return token
@@ -248,6 +307,7 @@ class SecretsManager:
         """
         Preload all secrets into environment variables and cache.
         Resolves each secret individually as SDK doesn't support bulk resolution.
+        Adds delays to prevent rate limiting.
         """
         try:
             logger.info("Preloading secrets from 1Password...")
@@ -255,9 +315,13 @@ class SecretsManager:
             loaded_count = 0
             failed_secrets = []
 
-            # Resolve each secret individually
-            for name, ref in SECRET_REFS.items():
+            # Resolve each secret individually with delay to prevent rate limiting
+            for i, (name, ref) in enumerate(SECRET_REFS.items()):
                 try:
+                    # Add delay between requests (except for first one)
+                    if i > 0:
+                        await asyncio.sleep(0.2)  # 200ms delay to prevent rate limiting
+
                     # Resolve the secret
                     value = await self._client.secrets.resolve(ref)
 
@@ -270,9 +334,28 @@ class SecretsManager:
                     logger.debug(f"Loaded {name}")
 
                 except Exception as e:
-                    error_msg = f"Failed to load {name}: {e}"
-                    logger.error(error_msg)
-                    failed_secrets.append(error_msg)
+                    error_msg = str(e)
+                    # Check for rate limiting
+                    if "429" in error_msg or "Too Many Requests" in error_msg:
+                        logger.warning(
+                            f"Rate limited while loading {name}, waiting 5 seconds..."
+                        )
+                        await asyncio.sleep(5)
+                        # Try once more after waiting
+                        try:
+                            value = await self._client.secrets.resolve(ref)
+                            os.environ[name] = value
+                            self._cache[name] = (value, time.time())
+                            loaded_count += 1
+                            logger.debug(f"Loaded {name} on retry")
+                        except Exception as retry_e:
+                            error_msg = f"Failed to load {name} after retry: {retry_e}"
+                            logger.error(error_msg)
+                            failed_secrets.append(error_msg)
+                    else:
+                        error_msg = f"Failed to load {name}: {e}"
+                        logger.error(error_msg)
+                        failed_secrets.append(error_msg)
 
             # Raise error if any secrets failed
             if failed_secrets:

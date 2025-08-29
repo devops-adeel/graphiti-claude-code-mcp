@@ -26,12 +26,15 @@ fi
 # Source the Service Account token
 source "$SERVICE_TOKEN_FILE"
 
-# Verify token is set
+# Verify token is set and export it
 if [ -z "${OP_SERVICE_ACCOUNT_TOKEN:-}" ]; then
     echo -e "${RED}❌ Service Account token file exists but token not set${NC}"
     echo "Check the contents of: $SERVICE_TOKEN_FILE"
     exit 1
 fi
+
+# CRITICAL: Export the token so Docker Compose can access it
+export OP_SERVICE_ACCOUNT_TOKEN
 
 echo -e "${BLUE}🔐 Starting Graphiti MCP Server with 1Password secrets...${NC}"
 echo "Using Service Account (zero Touch ID required)"
@@ -40,8 +43,9 @@ echo "Using Service Account (zero Touch ID required)"
 cd "$(dirname "$0")/.."
 
 # Inject secrets and start Docker Compose
+# The token is now exported and available to both op run AND docker compose
 echo "Injecting secrets from 1Password..."
-if op run --env-file=secrets/.env.1password -- docker compose up -d; then
+if OP_SERVICE_ACCOUNT_TOKEN="$OP_SERVICE_ACCOUNT_TOKEN" op run --env-file=secrets/.env.1password -- docker compose up -d; then
     echo -e "${GREEN}✅ Services started successfully with 1Password secrets${NC}"
     echo ""
     echo "View logs with: make logs"

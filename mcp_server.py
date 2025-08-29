@@ -1059,24 +1059,48 @@ async def main():
     """Run the MCP server"""
     logger.info("Starting Graphiti Claude Code MCP Server")
 
-    # Initialize secrets first (fail fast if secrets unavailable)
+    # Try to initialize secrets with fallback support
     try:
-        logger.info("Initializing 1Password SDK...")
+        logger.info("Initializing secrets manager...")
         secrets_manager = await SecretsManager.get_instance()
 
         # Perform health check
         health = await secrets_manager.health_check()
-        if not health["secrets_accessible"]:
-            raise RuntimeError("Health check failed: Cannot access secrets")
-
-        logger.info(
-            f"✅ 1Password SDK initialized (token expires in {health['token_days_left']} days)"
-        )
+        if health.get("secrets_accessible"):
+            logger.info(
+                f"✅ 1Password SDK initialized (token expires in {health['token_days_left']} days)"
+            )
+        else:
+            logger.warning("⚠️ Running in fallback mode with .env.graphiti")
 
     except Exception as e:
-        logger.error(f"❌ Failed to initialize secrets: {e}")
-        # Fail fast as requested
-        raise SystemExit(f"Cannot start MCP server without secrets: {e}")
+        error_msg = str(e)
+        # Check if it's a rate limit error
+        if "429" in error_msg or "Too Many Requests" in error_msg:
+            logger.warning("⚠️ 1Password rate limited, attempting fallback mode")
+            # Set fallback mode and retry
+            os.environ["GRAPHITI_FALLBACK_MODE"] = "true"
+            try:
+                # Reset singleton for retry
+                await SecretsManager.reset()
+                secrets_manager = await SecretsManager.get_instance()
+                logger.info("✅ Running in fallback mode with .env.graphiti")
+            except Exception as fallback_e:
+                logger.error(f"❌ Fallback also failed: {fallback_e}")
+                raise SystemExit(f"Cannot start MCP server: {fallback_e}")
+        else:
+            logger.error(f"❌ Failed to initialize secrets: {e}")
+            # Try fallback as last resort
+            logger.info("Attempting fallback mode...")
+            os.environ["GRAPHITI_FALLBACK_MODE"] = "true"
+            try:
+                await SecretsManager.reset()
+                secrets_manager = await SecretsManager.get_instance()
+                logger.info("✅ Running in fallback mode with .env.graphiti")
+            except Exception as fallback_e:
+                raise SystemExit(
+                    f"Cannot start MCP server without secrets: {fallback_e}"
+                )
 
     logger.info(
         f"Shared group_id: {os.getenv('GRAPHITI_GROUP_ID', 'shared_gtd_knowledge')}"

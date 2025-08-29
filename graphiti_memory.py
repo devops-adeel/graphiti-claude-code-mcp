@@ -327,25 +327,67 @@ class SharedMemory:
             logger.warning(f"Could not detect Graphiti version: {e}")
             self.graphiti_version = "unknown"
 
+    async def _retry_deferred_init(self):
+        """Retry initialization with updated API key after secrets load"""
+        if not hasattr(self, "_deferred_init") or not self._deferred_init:
+            return
+
+        api_key = os.getenv("OPENAI_API_KEY")
+        if api_key and api_key != "sk-pending-secrets-manager-init":
+            logger.info("Retrying initialization with loaded OPENAI_API_KEY")
+
+            # Update LLM config with real key
+            llm_config = LLMConfig(
+                api_key=api_key,
+                model=os.getenv("OPENAI_MODEL", "gpt-4o-mini"),
+                temperature=0.1,
+                max_tokens=4096,
+            )
+            self.llm_client = OpenAIClient(config=llm_config)
+
+            # Update embedder config
+            embedder_config = OpenAIEmbedderConfig(
+                api_key=api_key,
+                embedding_model=os.getenv(
+                    "OPENAI_EMBEDDING_MODEL", "text-embedding-3-small"
+                ),
+            )
+            self.embedder = OpenAIEmbedder(config=embedder_config)
+
+            # Recreate Graphiti client with updated components
+            self.client = Graphiti(self.driver, self.llm_client, self.embedder)
+            self._deferred_init = False
+            logger.info("Successfully updated with real API key")
+
     async def initialize(self):
         """Connect to shared graph database instance"""
         if self._initialized:
             return self.client
 
+        # Check if we need to retry deferred initialization
+        await self._retry_deferred_init()
+
         # Detect Graphiti version for compatibility
         self._detect_graphiti_version()
 
         try:
-            # Initialize LLM client
+            # Initialize LLM client - defer strict validation for lazy loading
             api_key = os.getenv("OPENAI_API_KEY")
-            if (
-                not api_key
-                or api_key.startswith("test-")
-                or api_key in ["placeholder-set-in-home-env", "test-key-for-testing"]
-            ):
-                raise ValueError(
-                    "Valid OPENAI_API_KEY not found. Please set it in ~/.env"
+
+            # Allow initialization to continue even without key
+            # Secrets manager will load it later
+            if not api_key or api_key in [
+                "placeholder-set-in-home-env",
+                "test-key-for-testing",
+            ]:
+                logger.warning(
+                    "OPENAI_API_KEY not yet available, deferring initialization"
                 )
+                # Use a placeholder that will be replaced when secrets load
+                api_key = "sk-pending-secrets-manager-init"
+                self._deferred_init = True
+            else:
+                self._deferred_init = False
 
             llm_config = LLMConfig(
                 api_key=api_key,
