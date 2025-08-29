@@ -425,7 +425,9 @@ class SharedMemory:
             )
 
             # Build indices and constraints
-            await self.client.build_indices_and_constraints()
+            # NOTE: Skipping for FalkorDB - it doesn't implement Neo4j's fulltext procedures
+            # FalkorDB uses RediSearch instead, which is automatically configured
+            # await self.client.build_indices_and_constraints()
 
             self._initialized = True
             logger.info(
