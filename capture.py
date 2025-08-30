@@ -84,6 +84,7 @@ class PatternCapture:
             self.active_tdd_cycle[feature_name] = cycle_data
 
         memory_id = await self.memory.add_memory(cycle_data, source="claude_code")
+        await self.memory.force_flush()  # Ensure immediate persistence
         logger.info(f"Captured TDD cycle for {feature_name}: {memory_id}")
 
         return memory_id
@@ -163,16 +164,19 @@ class PatternCapture:
                 memory_id = await self.memory.supersede_memory(
                     old_id, solution_data, f"Improved solution: {solution[:100]}"
                 )
+                await self.memory.force_flush()  # Ensure immediate persistence
                 logger.info(f"Superseded deployment solution {old_id} with {memory_id}")
             else:
                 memory_id = await self.memory.add_memory(
                     solution_data, source="claude_code"
                 )
+                await self.memory.force_flush()  # Ensure immediate persistence
         else:
             # New solution
             memory_id = await self.memory.add_memory(
                 solution_data, source="claude_code"
             )
+            await self.memory.force_flush()  # Ensure immediate persistence
             logger.info(f"Captured new deployment solution: {memory_id}")
 
         # Track in history
@@ -212,6 +216,7 @@ class PatternCapture:
         }
 
         memory_id = await self.memory.add_memory(docker_data, source="claude_code")
+        await self.memory.force_flush()  # Ensure immediate persistence
         logger.info(f"Captured Docker fix: {memory_id}")
 
         return memory_id
@@ -248,6 +253,7 @@ class PatternCapture:
         }
 
         memory_id = await self.memory.add_memory(test_data, source="claude_code")
+        await self.memory.force_flush()  # Ensure immediate persistence
         logger.info(f"Captured test pattern {pattern_name}: {memory_id}")
 
         return memory_id
@@ -312,6 +318,7 @@ class PatternCapture:
         }
 
         memory_id = await self.memory.add_memory(structure_data, source="claude_code")
+        await self.memory.force_flush()  # Ensure immediate persistence
         logger.info(f"Captured project structure: {memory_id}")
 
         return memory_id
@@ -358,9 +365,11 @@ class PatternCapture:
                 old_data,
                 f"Updated frequency: {old_data['frequency']}",
             )
+            await self.memory.force_flush()  # Ensure immediate persistence
         else:
             memory_id = await self.memory.add_memory(command_data, source="claude_code")
 
+        await self.memory.force_flush()  # Ensure immediate persistence
         logger.info(f"Captured command pattern: {memory_id}")
         return memory_id
 
@@ -424,14 +433,17 @@ class PatternCapture:
                 memory_id = await self.memory.supersede_memory(
                     old_id, summary_data, f"Updated session summary for {today}"
                 )
+                await self.memory.force_flush()  # Ensure immediate persistence
                 logger.info(f"Updated session summary {old_id} with {memory_id}")
             else:
                 memory_id = await self.memory.add_memory(
                     summary_data, source="claude_code"
                 )
+                await self.memory.force_flush()  # Ensure immediate persistence
         else:
             # New session summary
             memory_id = await self.memory.add_memory(summary_data, source="claude_code")
+            await self.memory.force_flush()  # Ensure immediate persistence
             logger.info(f"Captured session summary: {memory_id}")
 
         # Link to GTD tasks if connections exist
