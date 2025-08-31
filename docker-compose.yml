@@ -12,11 +12,10 @@ services:
 
       # CRITICAL: Must match GTD Coach for bi-directional knowledge sharing
       - GRAPHITI_GROUP_ID=${GRAPHITI_GROUP_ID:-shared_knowledge}
-      # For OrbStack networking - use the container name directly
-      - FALKORDB_HOST=falkordb
-      - FALKORDB_PORT=${FALKORDB_PORT:-6379}
-      # CRITICAL: Must use same database as GTD Coach
-      - FALKORDB_DATABASE=${FALKORDB_DATABASE:-shared_gtd_knowledge}
+      # Neo4j configuration
+      - NEO4J_URI=${NEO4J_URI:-bolt://neo4j.graphiti.local:7687}
+      - NEO4J_USER=${NEO4J_USER:-neo4j}
+      # Password retrieved from 1Password at runtime
 
       # Non-secret configuration values
       - OPENAI_MODEL=${OPENAI_MODEL:-gpt-4o-mini}
@@ -64,8 +63,8 @@ services:
     # Limit restart attempts to prevent rapid rate limit consumption
     restart: on-failure:3
 
-    depends_on:
-      - falkordb-check
+    # Neo4j runs in separate graphiti-neo4j project
+    # No dependency needed here
 
     healthcheck:
       test: ["CMD", "python", "-c", "import asyncio; from secrets_manager import SecretsManager; asyncio.run(SecretsManager.get_instance())"]
@@ -74,25 +73,9 @@ services:
       retries: 3
       start_period: 40s
 
-  # Health check service to ensure FalkorDB is available
-  falkordb-check:
-    image: redis:7-alpine
-    container_name: falkordb-health-check
-    command: >
-      sh -c "
-        until redis-cli -h falkordb.local -p 6379 ping; do
-          echo 'Waiting for FalkorDB at falkordb.local:6379...'
-          sleep 2
-        done
-        echo 'FalkorDB is ready!'
-      "
-    networks:
-      - graphiti-network
-    restart: "no"
-
-  # Utility service for running test commands
+  # Utility service for running Neo4j test commands
   test-runner:
-    image: redis:7-alpine
+    image: neo4j:5.26-community
     container_name: graphiti-test-runner
     networks:
       - graphiti-network

@@ -1,6 +1,7 @@
 # Core dependencies (auto-generated from pyproject.toml)
 # DO NOT EDIT MANUALLY - use: python scripts/sync-dependencies.py
-graphiti-core[falkordb]>=0.18.9,<0.19.0
+graphiti-core>=0.18.9,<0.19.0
+neo4j>=5.28.0
 python-dotenv>=1.0.0
 mcp>=0.1.0
 pydantic>=2.0.0

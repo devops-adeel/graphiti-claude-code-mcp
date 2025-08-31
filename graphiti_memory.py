@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """
 Unified Graphiti Memory Client for Claude Code
-Shares knowledge graph with GTD Coach using same group_id
+Shares knowledge graph with GTD Coach using Neo4j backend
 """
 
 import os
@@ -105,7 +105,7 @@ class SearchResultWrapper:
 class SharedMemory:
     """
     Memory layer sharing knowledge with GTD Coach
-    Uses same FalkorDB instance and group_id for unified knowledge graph
+    Uses Neo4j instance and shared group_id for unified knowledge graph
     """
 
     def __init__(self):
@@ -115,7 +115,7 @@ class SharedMemory:
 
         # CRITICAL: Use same group_id as GTD Coach for shared knowledge
         self.group_id = os.getenv("GRAPHITI_GROUP_ID", "shared_knowledge")
-        self.database = os.getenv("FALKORDB_DATABASE", "shared_knowledge")
+        self.database = "neo4j"  # Neo4j Community Edition default database
 
         # Memory configuration
         self.decay_factor = float(os.getenv("MEMORY_DECAY_FACTOR", "0.95"))
@@ -145,10 +145,6 @@ class SharedMemory:
         self.batch_size = int(os.getenv("GRAPHITI_BATCH_SIZE", "50"))
         self.flush_lock = asyncio.Lock()
 
-        # Connection pool (will be initialized with client)
-        self.pool = None
-        self.db = None
-
         logger.info(
             f"SharedMemory configured with group_id: {self.group_id}, batch_size: {self.batch_size}"
         )
@@ -172,16 +168,16 @@ class SharedMemory:
 
     def _escape_for_search(self, query: str) -> str:
         """
-        Escape special characters for safe FalkorDB/Cypher queries
+        Escape special characters for safe Neo4j/Cypher queries
 
-        FalkorDB uses Cypher, where special characters in property names
+        Neo4j uses Cypher, where special characters in property names
         should be wrapped with backticks, and string values need proper escaping
 
         Args:
             query: Raw search query
 
         Returns:
-            Escaped query safe for FalkorDB
+            Escaped query safe for Neo4j
         """
         # First, handle @ symbol commonly used in cross-references
         # Replace @word patterns with escaped versions
@@ -189,7 +185,7 @@ class SharedMemory:
             # Remove @ symbols as they're not needed for search
             query = query.replace("@", "")
 
-        # Handle problematic word "context" which causes RediSearch syntax errors
+        # Handle problematic word "context" which can cause search syntax errors
         # Simply remove it or replace with alternative search terms
         if "context" in query.lower():
             # Replace 'context' with 'ctx' or remove it entirely
@@ -327,6 +323,113 @@ class SharedMemory:
             logger.warning(f"Could not detect Graphiti version: {e}")
             self.graphiti_version = "unknown"
 
+    async def _get_neo4j_password(self):
+        """
+        Retrieve Neo4j password using multiple approaches.
+
+        Tries in order:
+        1. Environment variable NEO4J_PASSWORD
+        2. 1Password SDK with service account token
+        3. 1Password CLI with op inject
+
+        Returns:
+            str: The Neo4j password, or None if retrieval fails
+        """
+        # Try environment variable first
+        password = os.getenv("NEO4J_PASSWORD")
+        if password:
+            return password
+
+        try:
+            # Try 1Password SDK approach
+            from onepassword.client import Client
+
+            # Get service account token
+            token = os.getenv("OP_SERVICE_ACCOUNT_TOKEN")
+            if not token:
+                # Try to load from file
+                token_file = os.path.expanduser("~/.config/graphiti-mcp/service-token")
+                if os.path.exists(token_file):
+                    with open(token_file, "r") as f:
+                        content = f.read()
+                        for line in content.split("\n"):
+                            if "export OP_SERVICE_ACCOUNT_TOKEN=" in line:
+                                token = line.split("=", 1)[1].strip().strip("\"'")
+                                break
+
+            if token:
+                # Use SDK to get password
+                client = await Client.authenticate(
+                    auth=token,
+                    integration_name="Graphiti Memory",
+                    integration_version="v1.0.0",
+                )
+                password = await client.secrets.resolve(
+                    "op://HomeLab/Graphiti-Neo4j/password"
+                )
+                logger.info("✅ Retrieved Neo4j password from 1Password SDK")
+                return password
+
+        except ImportError:
+            logger.debug("1Password SDK not available")
+        except Exception as e:
+            logger.debug(f"SDK approach failed: {e}")
+
+        # Try CLI approach with op inject
+        try:
+            import subprocess
+            import tempfile
+
+            # Create temporary template file
+            with tempfile.NamedTemporaryFile(
+                mode="w", suffix=".env", delete=False
+            ) as f:
+                f.write("NEO4J_PASSWORD=op://HomeLab/Graphiti-Neo4j/password\n")
+                temp_template = f.name
+
+            with tempfile.NamedTemporaryFile(
+                mode="w", suffix=".env", delete=False
+            ) as f:
+                temp_output = f.name
+
+            # Use op inject to resolve the password
+            result = subprocess.run(
+                [
+                    "op",
+                    "inject",
+                    "-i",
+                    temp_template,
+                    "-o",
+                    temp_output,
+                    "--account",
+                    "my.1password.com",
+                    "--force",
+                ],
+                capture_output=True,
+                text=True,
+                check=True,
+            )
+
+            # Read the resolved password
+            with open(temp_output, "r") as f:
+                for line in f:
+                    if line.startswith("NEO4J_PASSWORD="):
+                        password = line.split("=", 1)[1].strip()
+                        break
+
+            # Clean up temp files
+            os.unlink(temp_template)
+            os.unlink(temp_output)
+
+            if password:
+                logger.info("✅ Retrieved Neo4j password using op inject")
+                return password
+
+        except Exception as e:
+            logger.error(f"❌ Failed to retrieve Neo4j password: {e}")
+
+        return None
+
     async def _retry_deferred_init(self):
         """Retry initialization with updated API key after secrets load"""
         if not hasattr(self, "_deferred_init") or not self._deferred_init:
@@ -406,70 +509,25 @@ class SharedMemory:
             )
             embedder = OpenAIEmbedder(config=embedder_config)
 
-            # Initialize Graphiti client with FalkorDB driver and connection pooling
-            from graphiti_core.driver.falkordb_driver import FalkorDriver
+            # Initialize Graphiti client with Neo4j credentials directly
+            # Get password from 1Password
+            neo4j_password = await self._get_neo4j_password()
+            if not neo4j_password:
+                raise ValueError("Failed to retrieve Neo4j password from 1Password")
 
-            # Check if we should use async pooling (for better performance)
-            use_async_pool = os.getenv("FALKORDB_USE_ASYNC", "false").lower() == "true"
-
-            # Use OrbStack domain for container-to-container communication
-            falkor_host = os.getenv("FALKORDB_HOST", "falkordb.local")
-            falkor_port = int(os.getenv("FALKORDB_PORT", "6379"))
-            max_connections = int(os.getenv("FALKORDB_MAX_CONNECTIONS", "8"))
-
-            if use_async_pool:
-                # Use async FalkorDB client with connection pooling
-                try:
-                    from falkordb.asyncio import FalkorDB
-                    from redis.asyncio import BlockingConnectionPool
-
-                    # Create BlockingConnectionPool for better concurrency
-                    self.pool = BlockingConnectionPool(
-                        host=falkor_host,
-                        port=falkor_port,
-                        max_connections=max_connections,
-                        timeout=30,
-                        decode_responses=True,
-                        retry_on_timeout=True,
-                        socket_keepalive=True,
-                        socket_keepalive_options={
-                            1: 1,  # TCP_KEEPIDLE
-                            2: 3,  # TCP_KEEPINTVL
-                            3: 5,  # TCP_KEEPCNT
-                        },
-                    )
-
-                    # Create async FalkorDB client
-                    self.db = FalkorDB(connection_pool=self.pool)
-
-                    # Note: Graphiti may not directly support async FalkorDB client
-                    # Fall back to standard driver with connection reuse
-                    logger.info(
-                        f"Initialized async FalkorDB with {max_connections} connections"
-                    )
-
-                except ImportError:
-                    logger.warning(
-                        "Async FalkorDB not available, using standard driver"
-                    )
-                    use_async_pool = False
-
-            # Create standard FalkorDB driver (with implicit connection reuse)
-            falkor_driver = FalkorDriver(
-                host=falkor_host,
-                port=falkor_port,
-                database=self.database,  # 'shared_knowledge_graph'
-            )
-
-            # Pass driver to Graphiti
+            # Initialize Graphiti with Neo4j credentials
+            # Note: graphiti-core now accepts credentials directly, not via driver
             self.client = Graphiti(
-                graph_driver=falkor_driver, llm_client=llm_client, embedder=embedder
+                uri=os.getenv("NEO4J_URI", "bolt://neo4j.graphiti.local:7687"),
+                user=os.getenv("NEO4J_USER", "neo4j"),
+                password=neo4j_password,
+                llm_client=llm_client,
+                embedder=embedder,
             )
 
             # Build indices and constraints
-            # NOTE: Skipping for FalkorDB - it doesn't implement Neo4j's fulltext procedures
-            # FalkorDB uses RediSearch instead, which is automatically configured
-            # await self.client.build_indices_and_constraints()
+            # Neo4j requires explicit fulltext index creation
+            await self.client.build_indices_and_constraints()
 
             self._initialized = True
             logger.info(
@@ -675,7 +733,7 @@ class SharedMemory:
         if include_historical is None:
             include_historical = self.include_historical
 
-        # Escape query for safe FalkorDB/Cypher search
+        # Escape query for safe Neo4j/Cypher search
         safe_query = self._escape_for_search(query)
 
         # Search in shared group
@@ -944,7 +1002,7 @@ class SharedMemory:
 
                 indexed_data[pattern_name] = processed
 
-                # Cache in memory (could also persist to Redis/FalkorDB)
+                # Cache in memory (could also persist to Neo4j)
                 await self._cache_pattern_results(pattern_name, processed)
 
                 logger.info(
@@ -1160,13 +1218,8 @@ class SharedMemory:
             # Flush any pending episodes before closing
             await self.force_flush()
 
-            # Close connection pool if using async
-            if self.pool:
-                try:
-                    await self.pool.aclose()
-                    logger.info("Closed FalkorDB connection pool")
-                except Exception as e:
-                    logger.error(f"Error closing connection pool: {e}")
+            # Neo4j driver manages its own connection pool internally
+            # No need for manual pool management
 
             # Close Graphiti client
             if self.client:
