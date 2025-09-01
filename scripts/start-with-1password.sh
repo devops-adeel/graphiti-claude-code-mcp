@@ -45,7 +45,8 @@ cd "$(dirname "$0")/.."
 # Inject secrets and start Docker Compose
 # The token is now exported and available to both op run AND docker compose
 echo "Injecting secrets from 1Password..."
-if OP_SERVICE_ACCOUNT_TOKEN="$OP_SERVICE_ACCOUNT_TOKEN" op run --env-file=secrets/.env.1password -- docker compose up -d; then
+# Use --no-masking to prevent op from clearing environment
+if OP_SERVICE_ACCOUNT_TOKEN="$OP_SERVICE_ACCOUNT_TOKEN" op run --no-masking --env-file=secrets/.env.1password -- docker compose up -d; then
     echo -e "${GREEN}✅ Services started successfully with 1Password secrets${NC}"
     echo ""
     echo "View logs with: make logs"
@@ -55,7 +56,7 @@ else
     echo ""
     echo "Troubleshooting:"
     echo "  1. Check Docker is running"
-    echo "  2. Verify FalkorDB is accessible at falkordb.local"
+    echo "  2. Verify Neo4j is accessible at neo4j.graphiti.local"
     echo "  3. Run: make test-1password"
     exit 1
 fi

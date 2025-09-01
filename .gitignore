@@ -175,3 +175,4 @@ $RECYCLE.BIN/
 *.msm
 *.msp
 *.lnk
+.tiktoken_cache/
