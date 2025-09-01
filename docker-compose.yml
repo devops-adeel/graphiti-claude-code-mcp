@@ -39,6 +39,20 @@ services:
       - LANGFUSE_HOST=${LANGFUSE_HOST:-https://langfuse.local}
       - LANGFUSE_TRACING_ENABLED=${LANGFUSE_TRACING_ENABLED:-true}
 
+      # OpenTelemetry Configuration
+      - OTEL_EXPORTER_OTLP_ENDPOINT=${OTEL_EXPORTER_OTLP_ENDPOINT:-http://alloy.local:4317}
+      - OTEL_SERVICE_NAME=${OTEL_SERVICE_NAME:-graphiti.mcp}
+      - OTEL_TRACES_EXPORTER=${OTEL_TRACES_EXPORTER:-otlp}
+      - OTEL_METRICS_EXPORTER=${OTEL_METRICS_EXPORTER:-otlp}
+      - OTEL_INSTRUMENTATION_ENABLED=${OTEL_INSTRUMENTATION_ENABLED:-true}
+
+      # Adaptive Sampling Configuration
+      - INFRASTRUCTURE_BASE_SAMPLE_RATE=${INFRASTRUCTURE_BASE_SAMPLE_RATE:-0.1}
+      - INFRASTRUCTURE_MAX_SAMPLE_RATE=${INFRASTRUCTURE_MAX_SAMPLE_RATE:-1.0}
+      - MEMORY_PRESSURE_THRESHOLD=${MEMORY_PRESSURE_THRESHOLD:-70}
+      - LATENCY_THRESHOLD_SECONDS=${LATENCY_THRESHOLD_SECONDS:-5.0}
+      - CASCADE_WINDOW_SECONDS=${CASCADE_WINDOW_SECONDS:-60}
+
       # SSL Configuration for OrbStack
       - SSL_CERT_FILE=/usr/local/share/ca-certificates/orbstack-root.crt
       - REQUESTS_CA_BUNDLE=/usr/local/share/ca-certificates/orbstack-root.crt
@@ -50,6 +64,8 @@ services:
       - ${HOME}/gtd-coach/.env.graphiti:/app/.env.graphiti:ro
       # Mount Claude commands output directory
       - ${HOME}/.claude/commands:/root/.claude/commands
+      # Mount Neo4j query logs for correlation (read-only)
+      - ${HOME}/Documents/1_projects/graphiti-neo4j/neo4j/logs:/var/lib/neo4j/logs:ro
 
     ports:
       # MCP server port (if needed for debugging)

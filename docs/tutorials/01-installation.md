@@ -69,7 +69,7 @@ Essential settings:
 ```bash
 NEO4J_URI=bolt://neo4j.graphiti.local:7687  # For Neo4j
 NEO4J_USER=neo4j
-FALKORDB_PORT=6379
+NEO4J_PASSWORD=your-password-here  # Set your Neo4j password
 GRAPHITI_GROUP_ID=shared_knowledge
 ```
 
@@ -125,8 +125,8 @@ Ensure Neo4j is accessible:
 docker ps | grep neo4j
 
 # Test connection
-redis-cli -p 6379 ping
-# Should return: PONG
+nc -z neo4j.graphiti.local 7687
+# Should return: Connection successful
 
 # Run health check
 make health-check
