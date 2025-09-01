@@ -5,7 +5,7 @@ Memory Pipeline Health Check
 Verifies the complete memory capture → storage → retrieval pipeline.
 
 This script tests each stage of the memory system and provides clear
-diagnostics when issues occur. Run with --verbose to see FalkorDB queries
+diagnostics when issues occur. Run with --verbose to see Neo4j queries
 and internal operations.
 
 Usage:
@@ -116,9 +116,9 @@ class HealthCheck:
         # Check critical environment variables
         required_vars = {
             "GRAPHITI_GROUP_ID": "shared_knowledge",
-            "FALKORDB_HOST": None,  # Any value ok
-            "FALKORDB_PORT": None,  # Any value ok
-            "FALKORDB_DATABASE": None,  # Any value ok (both shared_gtd_knowledge and shared_knowledge_graph work)
+            "NEO4J_URI": None,  # Any value ok
+            "NEO4J_USER": None,  # Any value ok
+            "NEO4J_DATABASE": None,  # Any value ok
             "OPENAI_API_KEY": None,  # Just needs to exist
         }
 
@@ -138,11 +138,11 @@ class HealthCheck:
         if self.verbose:
             self.log("", "debug")
             self.log("Current configuration:", "debug")
-            host = os.getenv("FALKORDB_HOST", "not set")
-            port = os.getenv("FALKORDB_PORT", "not set")
-            db = os.getenv("FALKORDB_DATABASE", "not set")
+            uri = os.getenv("NEO4J_URI", "not set")
+            user = os.getenv("NEO4J_USER", "not set")
+            db = os.getenv("NEO4J_DATABASE", "not set")
             group = os.getenv("GRAPHITI_GROUP_ID", "not set")
-            print(f"  FalkorDB: {host}:{port}/{db}")
+            print(f"  Neo4j: {uri} (user: {user}, db: {db})")
             print(f"  Group ID: {group}")
             print(
                 f"  OpenAI: {'configured' if os.getenv('OPENAI_API_KEY') else 'missing'}"
@@ -152,18 +152,18 @@ class HealthCheck:
         return config_ok
 
     async def check_connections(self) -> bool:
-        """Stage 2: Test connections to FalkorDB and OpenAI"""
+        """Stage 2: Test connections to Neo4j and OpenAI"""
         self.log_section("Stage 2: Connection Check")
 
         connection_ok = True
 
-        # Test FalkorDB connection
+        # Test Neo4j connection
         try:
             if self.verbose:
-                self.log("Testing FalkorDB connection...", "debug")
-                host = os.getenv("FALKORDB_HOST", "localhost")
-                port = os.getenv("FALKORDB_PORT", "6380")
-                self.log(f"Connecting to {host}:{port}", "query")
+                self.log("Testing Neo4j connection...", "debug")
+                uri = os.getenv("NEO4J_URI", "bolt://localhost:7687")
+                user = os.getenv("NEO4J_USER", "neo4j")
+                self.log(f"Connecting to {uri} as {user}", "query")
 
             # Import here to avoid early failures
             from graphiti_memory import get_shared_memory
@@ -175,19 +175,19 @@ class HealthCheck:
             if self.verbose:
                 self.log(f"Query: {test_query}", "query")
 
-            self.log("FalkorDB connection: OK", "success")
+            self.log("Neo4j connection: OK", "success")
 
         except Exception as e:
-            self.log(f"FalkorDB connection failed: {str(e)}", "error")
+            self.log(f"Neo4j connection failed: {str(e)}", "error")
             if self.verbose:
                 traceback.print_exc()
             connection_ok = False
 
             if self.fix:
                 self.log("Fix suggestions:", "warning")
-                print("  1. Check FalkorDB is running: docker ps | grep falkor")
-                print("  2. Verify port: redis-cli -p 6380 ping")
-                print("  3. For Docker: use 'falkordb.local' as host")
+                print("  1. Check Neo4j is running: docker ps | grep neo4j")
+                print("  2. Verify connection: cypher-shell -a bolt://localhost:7687")
+                print("  3. For Docker: use 'neo4j.graphiti.local' as host")
 
         # Test OpenAI connection
         try:
@@ -273,7 +273,7 @@ class HealthCheck:
         return capture_ok
 
     async def check_storage(self) -> bool:
-        """Stage 4: Verify storage in FalkorDB"""
+        """Stage 4: Verify storage in Neo4j"""
         self.log_section("Stage 4: Storage Verification")
 
         storage_ok = True
@@ -284,9 +284,9 @@ class HealthCheck:
             return False
 
         try:
-            # Direct FalkorDB query to verify storage
+            # Direct Neo4j query to verify storage
             if self.verbose:
-                self.log("Querying FalkorDB for stored memory...", "debug")
+                self.log("Querying Neo4j for stored memory...", "debug")
                 # Show the query that would verify storage
                 query = f"""
                 MATCH (e:Episode {{uuid: '{self.test_memory_id}'}})
@@ -319,12 +319,11 @@ class HealthCheck:
             storage_ok = False
 
             if self.fix:
-                self.log("Direct FalkorDB query to check:", "warning")
-                print(f"  redis-cli -p 6380")
+                self.log("Direct Neo4j query to check:", "warning")
                 print(
-                    f"  GRAPH.QUERY {os.getenv('FALKORDB_DATABASE', 'shared_gtd_knowledge')}"
+                    f"  cypher-shell -a {os.getenv('NEO4J_URI', 'bolt://localhost:7687')}"
                 )
-                print(f'  "MATCH (n) RETURN n LIMIT 5"')
+                print(f"  MATCH (n) RETURN n LIMIT 5")
 
         self.results.append(("Storage", storage_ok))
         return storage_ok

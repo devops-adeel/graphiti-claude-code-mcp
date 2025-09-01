@@ -16,7 +16,7 @@ The system uses 1Password SDK for runtime secret retrieval:
 
 # Required vault access
 Vault: HomeLab
-Items: FalkorDB/Integration, Langfuse/Integration
+Items: Neo4j GraphitiCore, Langfuse/Integration
 ```
 
 ### Secret References
@@ -25,7 +25,7 @@ All secrets are defined in `config/secrets_manifest.py`:
 
 | Secret | 1Password Item | Field | Usage |
 |--------|---------------|-------|-------|
-| `OPENAI_API_KEY` | FalkorDB/Integration | api_key | LLM operations |
+| `OPENAI_API_KEY` | Neo4j GraphitiCore | api_key | LLM operations |
 | `LANGFUSE_PUBLIC_KEY` | Langfuse/Integration | public_key | Tracing |
 | `LANGFUSE_SECRET_KEY` | Langfuse/Integration | secret_key | Tracing auth |
 | `LANGFUSE_HOST` | Langfuse/Integration | host | API endpoint |
@@ -78,10 +78,10 @@ SKIP=gitleaks,trufflehog git commit -m "message"
 Store in `~/.config/graphiti-mcp/.env.graphiti`:
 
 ```bash
-# FalkorDB Connection (non-secret)
-FALKORDB_HOST=falkordb.local
-FALKORDB_PORT=6379
-FALKORDB_DATABASE=shared_knowledge
+# Neo4j Connection (non-secret)
+NEO4J_URI=bolt://neo4j.graphiti.local:7687
+NEO4J_USER=neo4j
+NEO4J_DATABASE=neo4j
 
 # Graphiti Configuration (non-secret)
 GRAPHITI_GROUP_ID=shared_knowledge
@@ -177,7 +177,7 @@ BATCH_SIZE = 50    # Episodes per flush
 ### Input Validation
 
 ```python
-# Escape special characters for FalkorDB
+# Escape special characters for Neo4j
 def escape_for_search(query: str) -> str:
     query = query.replace("@", "")
     query = query.replace(":", " ")

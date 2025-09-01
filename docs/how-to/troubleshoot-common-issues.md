@@ -14,30 +14,31 @@ make health-check-fix      # Get fix suggestions
 
 ## Connection Issues
 
-### Problem: Cannot connect to FalkorDB
+### Problem: Cannot connect to Neo4j
 
 **Symptoms:**
-- `ConnectionRefusedError: [Errno 61] Connection refused`
-- `redis.exceptions.ConnectionError`
+- `Neo4jError: Failed to establish connection`
+- `ServiceUnavailable: Unable to connect to bolt://`
 
 **Solutions:**
 
-1. Verify FalkorDB is running:
+1. Verify Neo4j is running:
 ```bash
-docker ps | grep falkor
-redis-cli -p 6379 ping  # Should return PONG
+docker ps | grep neo4j
+cypher-shell -a bolt://localhost:7687  # Enter credentials when prompted
 ```
 
 2. Check port configuration:
 ```bash
-# Verify port in .env.graphiti
-grep FALKORDB_PORT ~/.config/graphiti-mcp/.env.graphiti
+# Verify URI in .env.graphiti
+grep NEO4J_URI ~/.config/graphiti-mcp/.env.graphiti
 ```
 
 3. For OrbStack users, use domain name:
 ```bash
 # In .env.graphiti, set:
-FALKORDB_HOST=falkordb.local
+NEO4J_URI=bolt://neo4j.graphiti.local:7687
+NEO4J_USER=neo4j
 ```
 
 ### Problem: MCP server not found in Claude Code
@@ -148,7 +149,7 @@ python scripts/check-sdk-health.py
 3. Check item references:
 ```python
 # Verify item exists in vault
-op item get "FalkorDB/Integration" --vault "HomeLab"
+op item get "Neo4j GraphitiCore" --vault "Personal"
 ```
 
 ## Docker Issues

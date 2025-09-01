@@ -88,5 +88,5 @@ networks:
     name: orbstack-shared
     external: true
 
-# Note: This compose file assumes FalkorDB is already running via OrbStack
-# on port 6379 as configured in /Users/adeel/Documents/1_projects/falkordb/docker-compose.yml
+# Note: This compose file assumes Neo4j is already running in the graphiti-neo4j project
+# on port 7687 with proper authentication configured via 1Password

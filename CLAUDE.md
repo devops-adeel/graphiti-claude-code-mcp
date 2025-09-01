@@ -6,7 +6,7 @@ This is a Graphiti-based memory layer for Claude Code that shares a knowledge gr
 ## Key Architectural Decisions
 
 ### Shared Knowledge Graph
-- Uses same FalkorDB instance as GTD Coach (port 6380)
+- Uses same Neo4j instance as GTD Coach (port 7687)
 - Shares group_id: `shared_gtd_knowledge`
 - Never deletes memories - only marks as superseded
 - Maintains temporal history with exponential decay weighting
@@ -34,7 +34,7 @@ This is a Graphiti-based memory layer for Claude Code that shares a knowledge gr
 
 ### Docker/OrbStack
 - Use OrbStack for container management
-- FalkorDB runs on custom port 6380
+- Neo4j runs on port 7687
 - Multi-stage builds for efficiency
 - Health checks for all services
 
@@ -57,7 +57,7 @@ pytest-watch tests/
 
 ### Docker Operations
 ```bash
-# Start services (FalkorDB must be running first)
+# Start services (Neo4j must be running first)
 docker compose up -d
 
 # View logs
@@ -222,7 +222,7 @@ When memories aren't captured or retrieved as expected, run the health check fir
 # Basic check - shows pass/fail for each stage
 make health-check
 
-# Verbose mode - shows FalkorDB queries and internal operations
+# Verbose mode - shows Neo4j queries and internal operations
 make health-check-verbose
 
 # Get fix suggestions for failures
@@ -234,7 +234,7 @@ make health-check-all
 
 The health check verifies:
 1. Configuration alignment with GTD Coach
-2. FalkorDB and OpenAI connections
+2. Neo4j and OpenAI connections
 3. Memory capture pipeline
 4. Storage verification
 5. Retrieval and search
@@ -246,9 +246,9 @@ Full troubleshooting guide: `docs/how-to/troubleshoot-common-issues.md`
 
 ## Troubleshooting
 
-### FalkorDB Connection Issues
-1. Check FalkorDB is running: `docker ps | grep falkor`
-2. Verify port 6379 or 6380: `redis-cli -p 6379 ping`
+### Neo4j Connection Issues
+1. Check Neo4j is running: `docker ps | grep neo4j`
+2. Verify connection: `cypher-shell -a bolt://localhost:7687`
 3. Check environment variables in `.env.graphiti`
 
 ### Memory Not Persisting

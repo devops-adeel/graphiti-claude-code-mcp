@@ -249,9 +249,9 @@ ENABLE_CROSS_REFERENCES=true
 MEMORY_INCLUDE_HISTORICAL=false
 
 # Connection
-FALKORDB_HOST=falkordb.local
-FALKORDB_PORT=6379
-FALKORDB_DATABASE=shared_knowledge
+NEO4J_URI=bolt://neo4j.graphiti.local:7687
+NEO4J_USER=neo4j
+NEO4J_DATABASE=neo4j
 ```
 
 ### Python Configuration
@@ -270,7 +270,7 @@ memory.max_tokens = 10000   # More context
 
 | Exception | Cause | Solution |
 |-----------|-------|----------|
-| `ConnectionError` | FalkorDB unavailable | Check Docker/connection |
+| `ConnectionError` | Neo4j unavailable | Check Docker/connection |
 | `ValueError` | Invalid API key | Verify 1Password setup |
 | `TokenLimitError` | Results too large | Reduce search scope |
 | `ValidationError` | Invalid metadata | Check Pydantic models |
@@ -331,18 +331,18 @@ capture = await get_pattern_capture()
 
 # Capture solution
 memory_id = await capture.capture_deployment_solution(
-    error="Port 6379 already in use",
-    solution="Use port 6380 for FalkorDB",
-    context={"service": "falkordb"}
+    error="Connection refused on port 7687",
+    solution="Ensure Neo4j is running and accessible",
+    context={"service": "neo4j"}
 )
 
 # Search later
 results = await memory.search_with_temporal_weight(
-    "port conflict falkordb"
+    "neo4j connection error"
 )
 
 # Check evolution
-evolution = await memory.get_memory_evolution("falkordb port")
+evolution = await memory.get_memory_evolution("neo4j connection")
 
 # Supersede if better solution found
 if better_solution:

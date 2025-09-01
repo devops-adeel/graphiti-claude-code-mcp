@@ -4,7 +4,7 @@ A temporal knowledge graph memory layer for Claude Code that captures coding pat
 
 ## Features
 
-- 🧠 **Shared Knowledge Graph** - Integrates with GTD Coach using same FalkorDB instance
+- 🧠 **Shared Knowledge Graph** - Integrates with GTD Coach using same Neo4j instance
 - ⏳ **Temporal Memory** - Never deletes history, uses exponential decay weighting
 - 🔄 **Pattern Evolution** - Tracks how solutions improve over time
 - 🎯 **TDD Capture** - Records red-green-refactor cycles
@@ -31,7 +31,7 @@ A temporal knowledge graph memory layer for Claude Code that captures coding pat
              ▼
 ┌─────────────────────────────────────────┐
 │        Shared Knowledge Graph            │
-│    (FalkorDB - Port 6380)               │
+│    (Neo4j - Port 7687)                  │
 │    group_id: shared_gtd_knowledge       │
 └────────────┬────────────────────────────┘
              │
@@ -44,13 +44,15 @@ A temporal knowledge graph memory layer for Claude Code that captures coding pat
 
 ## Quick Start
 
-**New to the project?** Start with our [Installation Tutorial](docs/tutorials/01-installation.md) (15 minutes).
+**New to the project?** Start with our [Neo4j Quickstart](docs/tutorials/01-neo4j-quickstart.md) (5 minutes).
+
+> **Note for FalkorDB users**: Migrating from v2.x? See our [migration guide](docs/migrations/falkordb-to-neo4j-v3.0.md).
 
 ### Prerequisites
 
 - Python 3.11+
 - Docker with OrbStack (macOS) or Docker Desktop
-- FalkorDB running on port 6379
+- Neo4j running on port 7687
 - 1Password Service Account
 - OpenAI API key (stored in 1Password)
 
@@ -69,13 +71,13 @@ claude mcp add graphiti-mcp -- $PWD/scripts/claude-mcp-wrapper.sh
 make health-check
 ```
 
-For detailed instructions, see [Installation Tutorial](docs/tutorials/01-installation.md).
+For detailed instructions, see [Neo4j Quickstart](docs/tutorials/01-neo4j-quickstart.md).
 
 ## Documentation
 
 ### 📚 Learn (Tutorials)
 Start here if you're new:
-- [Installation](docs/tutorials/01-installation.md) - Get up and running (15 min)
+- [Neo4j Quickstart](docs/tutorials/01-neo4j-quickstart.md) - Get up and running (5 min)
 - [First Memory](docs/tutorials/02-first-memory.md) - Capture and retrieve your first memory (20 min)
 
 ### 🔧 Solve (How-to Guides)
@@ -143,7 +145,7 @@ ACTIVE ──superseded──> SUPERSEDED ──aged──> HISTORICAL ──inv
 This memory layer shares the same knowledge graph with GTD Coach:
 
 - **Shared group_id**: `shared_gtd_knowledge`
-- **Same FalkorDB**: Port 6380
+- **Same Neo4j**: Port 7687
 - **Cross-references**: Automatic linking between domains
 - **Unified search**: Query across both GTD and coding memories
 
@@ -172,7 +174,7 @@ docker compose logs -f graphiti-mcp
 make health-check-verbose
 
 # Check connections
-redis-cli -p 6379 ping
+cypher-shell -a bolt://localhost:7687
 docker ps | grep graphiti
 ```
 
@@ -238,5 +240,5 @@ MIT
 
 - Built on [Graphiti](https://github.com/getzep/graphiti) by Zep
 - Integrates with [GTD Coach](https://github.com/yourusername/gtd-coach)
-- Uses [FalkorDB](https://www.falkordb.com/) for graph storage
+- Uses [Neo4j](https://neo4j.com/) for graph storage
 - Implements [MCP](https://github.com/anthropics/mcp) protocol

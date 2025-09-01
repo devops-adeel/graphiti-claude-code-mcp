@@ -67,7 +67,8 @@ nano ~/.config/graphiti-mcp/.env.graphiti
 
 Essential settings:
 ```bash
-FALKORDB_HOST=falkordb.local  # For OrbStack
+NEO4J_URI=bolt://neo4j.graphiti.local:7687  # For Neo4j
+NEO4J_USER=neo4j
 FALKORDB_PORT=6379
 GRAPHITI_GROUP_ID=shared_knowledge
 ```
@@ -115,13 +116,13 @@ Test that everything works:
    "Search your memory for 'test connection'"
    ```
 
-## Step 6: Verify FalkorDB Connection
+## Step 6: Verify Neo4j Connection
 
-Ensure FalkorDB is accessible:
+Ensure Neo4j is accessible:
 
 ```bash
-# Check if FalkorDB is running
-docker ps | grep falkor
+# Check if Neo4j is running
+docker ps | grep neo4j
 
 # Test connection
 redis-cli -p 6379 ping
@@ -134,7 +135,7 @@ make health-check
 Expected output:
 ```
 ✅ Configuration aligned with GTD Coach
-✅ FalkorDB connection successful
+✅ Neo4j connection successful
 ✅ Memory capture working
 ```
 
