@@ -7,6 +7,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 
+### ⚙️ Miscellaneous Tasks
+
+- Complete Neo4j migration cleanup
+## [Unreleased]
+
+
 ### 🚀 Features
 
 - [**breaking**] Migrate from FalkorDB to Neo4j backend
