@@ -25,7 +25,7 @@ help: ## Show this help message
 	@echo ""
 	@echo "Quick start:"
 	@echo "  1. $(GREEN)make setup-1password$(NC)  - One-time 1Password setup"
-	@echo "  2. $(GREEN)make up-secure$(NC)        - Start with 1Password (zero Touch ID)"
+	@echo "  2. $(GREEN)make up$(NC)               - Start with 1Password"
 	@echo "  3. $(GREEN)make logs$(NC)             - View logs"
 
 # === Configuration Management ===
@@ -35,10 +35,11 @@ fix-config: ## Fix configuration to match GTD Coach
 	@echo "$(BLUE)Fixing configuration alignment with GTD Coach...$(NC)"
 	@cp .env.graphiti .env.graphiti.backup 2>/dev/null || true
 	@sed -i '' 's/GRAPHITI_GROUP_ID=shared_gtd_knowledge/GRAPHITI_GROUP_ID=shared_knowledge/g' .env.graphiti
-	@sed -i '' 's/NEO4J_DATABASE=shared_knowledge_graph/NEO4J_DATABASE=shared_gtd_knowledge/g' .env.graphiti
+	@sed -i '' 's/NEO4J_DATABASE=shared_knowledge_graph/NEO4J_DATABASE=neo4j/g' .env.graphiti
+	@sed -i '' 's/NEO4J_DATABASE=shared_gtd_knowledge/NEO4J_DATABASE=neo4j/g' .env.graphiti
 	@echo "$(GREEN)✅ Configuration fixed$(NC)"
 	@echo "  GRAPHITI_GROUP_ID: shared_knowledge"
-	@echo "  NEO4J_DATABASE: shared_gtd_knowledge"
+	@echo "  NEO4J_DATABASE: neo4j (Community Edition requirement)"
 
 .PHONY: verify-config
 verify-config: ## Verify configuration matches GTD Coach
@@ -50,10 +51,10 @@ verify-config: ## Verify configuration matches GTD Coach
 		echo "  Run: make fix-config"; \
 		exit 1; \
 	fi
-	@if grep -q "NEO4J_DATABASE=shared_gtd_knowledge" .env.graphiti; then \
-		echo "$(GREEN)✅ NEO4J_DATABASE correct$(NC)"; \
+	@if grep -q "NEO4J_DATABASE=neo4j" .env.graphiti; then \
+		echo "$(GREEN)✅ NEO4J_DATABASE correct (neo4j for Community Edition)$(NC)"; \
 	else \
-		echo "$(RED)❌ NEO4J_DATABASE incorrect$(NC)"; \
+		echo "$(RED)❌ NEO4J_DATABASE incorrect (must be 'neo4j' for Community Edition)$(NC)"; \
 		echo "  Run: make fix-config"; \
 		exit 1; \
 	fi
@@ -103,12 +104,7 @@ build: ## Build Docker image
 	@echo "$(GREEN)✅ Image built: $(DOCKER_IMAGE)$(NC)"
 
 .PHONY: up
-up: verify-config ## Start with .env.graphiti (standard mode)
-	@echo "$(BLUE)Starting with standard configuration...$(NC)"
-	@./scripts/start-standard.sh
-
-.PHONY: up-secure
-up-secure: verify-config ## Start with 1Password (zero Touch ID)
+up: verify-config ## Start with 1Password secrets
 	@echo "$(BLUE)Starting with 1Password secrets...$(NC)"
 	@./scripts/start-with-1password.sh
 
@@ -119,10 +115,7 @@ down: ## Stop all services
 	@echo "$(GREEN)✅ Services stopped$(NC)"
 
 .PHONY: restart
-restart: down up ## Restart services
-
-.PHONY: restart-secure
-restart-secure: down up-secure ## Restart with 1Password
+restart: down up ## Restart services with 1Password
 
 .PHONY: logs
 logs: ## View logs (follow mode)
@@ -276,10 +269,7 @@ python: ## Open Python REPL in container
 	@docker exec -it graphiti-claude-code-mcp python
 
 .PHONY: rebuild
-rebuild: down build up ## Rebuild and restart
-
-.PHONY: rebuild-secure
-rebuild-secure: down build up-secure ## Rebuild and restart with 1Password
+rebuild: down build up ## Rebuild and restart with 1Password
 
 # === SSL & Langfuse Diagnostics ===
 

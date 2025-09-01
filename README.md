@@ -46,8 +46,6 @@ A temporal knowledge graph memory layer for Claude Code that captures coding pat
 
 **New to the project?** Start with our [Neo4j Quickstart](docs/tutorials/01-neo4j-quickstart.md) (5 minutes).
 
-> **Note for FalkorDB users**: Migrating from v2.x? See our [migration guide](docs/migrations/falkordb-to-neo4j-v3.0.md).
-
 ### Prerequisites
 
 - Python 3.11+

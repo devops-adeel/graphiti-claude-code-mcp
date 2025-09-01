@@ -42,8 +42,8 @@ testpaths = ["tests"]
 python_files = "test_*.py"
 
 [tool.setuptools]
-py-modules = ["graphiti_memory", "capture", "commands", "mcp_server", "langfuse_analyzer", "langfuse_patterns", "langfuse_models", "instrumentation"]
-packages = ["instrumentation"]
+py-modules = ["graphiti_memory", "capture", "commands", "mcp_server", "mcp_stdio_wrapper", "secrets_manager", "ssl_config"]
+packages = ["langfuse_integration", "instrumentation"]
 
 [tool.ruff]
 line-length = 100

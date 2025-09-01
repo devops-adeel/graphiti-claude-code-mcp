@@ -189,7 +189,7 @@ A unified dashboard (`graphiti-dual-observability.json`) provides:
 
 ### Neo4j Correlation
 - Slowest queries table
-- FalkorDB query rate
+- Neo4j query rate
 
 ### Langfuse Metrics
 - LLM token usage rate
