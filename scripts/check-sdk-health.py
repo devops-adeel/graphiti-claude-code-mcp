@@ -31,7 +31,7 @@ class HealthChecker:
             "cache_working": False,
             "token_days_left": 0,
             "environment_setup": False,
-            "falkordb_config": False,
+            "neo4j_config": False,
         }
         self.errors = []
         self.warnings = []
@@ -56,8 +56,8 @@ class HealthChecker:
         # Check 5: Environment Setup
         await self.check_environment()
 
-        # Check 6: FalkorDB Configuration
-        await self.check_falkordb_config()
+        # Check 6: Neo4j Configuration
+        await self.check_neo4j_config()
 
         # Print summary
         self.print_summary()
@@ -234,8 +234,8 @@ class HealthChecker:
         required_vars = [
             "OPENAI_API_KEY",
             "GRAPHITI_GROUP_ID",
-            "FALKORDB_HOST",
-            "FALKORDB_PORT",
+            "NEO4J_HOST",
+            "NEO4J_PORT",
         ]
 
         all_set = True
@@ -253,13 +253,16 @@ class HealthChecker:
 
         self.checks["environment_setup"] = all_set
 
-    async def check_falkordb_config(self):
-        """Check FalkorDB configuration"""
-        print("\n6️⃣ Checking FalkorDB Configuration...")
+    async def check_neo4j_config(self):
+        """Check Neo4j configuration"""
+        print("\n6️⃣ Checking Neo4j Configuration...")
+        # AI-CONTEXT: Neo4j graph database via OrbStack domain
+        # Connection: bolt://neo4j.graphiti.local:7687
+        # Database: "neo4j" (Community Edition requirement)
 
-        host = os.getenv("FALKORDB_HOST", "not set")
-        port = os.getenv("FALKORDB_PORT", "not set")
-        database = os.getenv("FALKORDB_DATABASE", "not set")
+        host = os.getenv("NEO4J_HOST", "not set")
+        port = os.getenv("NEO4J_PORT", "not set")
+        database = os.getenv("NEO4J_DATABASE", "not set")
         group_id = os.getenv("GRAPHITI_GROUP_ID", "not set")
 
         print(f"   Host: {host}")
@@ -274,10 +277,10 @@ class HealthChecker:
             sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
             sock.settimeout(2)
 
-            # Try different host resolutions
+            # Try different host resolutions for OrbStack
             hosts_to_try = []
-            if host == "falkordb":
-                hosts_to_try = ["localhost", "127.0.0.1", "falkordb.local"]
+            if host == "neo4j.graphiti.local":
+                hosts_to_try = ["neo4j.graphiti.local", "localhost", "127.0.0.1"]
             elif host == "host.docker.internal":
                 hosts_to_try = ["localhost", "127.0.0.1"]
             else:
@@ -288,22 +291,22 @@ class HealthChecker:
                 try:
                     result = sock.connect_ex((test_host, int(port)))
                     if result == 0:
-                        print(f"   ✅ FalkorDB reachable at {test_host}:{port}")
+                        print(f"   ✅ Neo4j reachable at {test_host}:{port}")
                         connected = True
                         break
                 except:
                     pass
 
             if not connected:
-                print(f"   ⚠️ Cannot connect to FalkorDB at {host}:{port}")
-                self.warnings.append(f"FalkorDB not reachable at {host}:{port}")
+                print(f"   ⚠️ Cannot connect to Neo4j at {host}:{port}")
+                self.warnings.append(f"Neo4j not reachable at {host}:{port}")
 
-            self.checks["falkordb_config"] = connected
+            self.checks["neo4j_config"] = connected
             sock.close()
 
         except Exception as e:
-            print(f"   ❌ Error checking FalkorDB: {e}")
-            self.errors.append(f"FalkorDB check error: {e}")
+            print(f"   ❌ Error checking Neo4j: {e}")
+            self.errors.append(f"Neo4j check error: {e}")
 
     def print_summary(self):
         """Print summary of health checks"""
@@ -367,8 +370,8 @@ class HealthChecker:
             if self.checks["token_days_left"] < 30:
                 print("  2. Rotate service account token in 1Password soon")
 
-            if not self.checks["falkordb_config"]:
-                print("  3. Ensure FalkorDB is running on the configured port")
+            if not self.checks.get("neo4j_config", False):
+                print("  3. Ensure Neo4j is running on the configured port")
                 print("     Check with: docker ps | grep falkor")
 
             if not self.checks["secrets_accessible"]:

@@ -17,7 +17,7 @@ if home_env.exists():
                 os.environ["OPENAI_API_KEY"] = value
                 break
 
-print(f"FalkorDB: {os.getenv('FALKORDB_HOST')}:{os.getenv('FALKORDB_PORT')}")
+print(f"Neo4j: {os.getenv('NEO4J_HOST')}:{os.getenv('NEO4J_PORT')}")
 
 
 async def test():

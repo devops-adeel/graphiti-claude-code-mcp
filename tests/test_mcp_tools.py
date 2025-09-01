@@ -186,7 +186,7 @@ async def main():
     print("Testing Graphiti MCP Tools")
     print("=" * 60)
 
-    # Load environment - only .env.graphiti for FalkorDB settings
+    # Load environment - only .env.graphiti for Neo4j settings
     from dotenv import load_dotenv
     from pathlib import Path
 

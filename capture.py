@@ -132,11 +132,10 @@ class PatternCapture:
         # Clean the context before serialization
         cleaned_context = clean_for_search(context)
 
-        # Serialize context to avoid FalkorDB nested JSON issues
+        # Serialize context to avoid nested JSON issues
         context_obj = {
             "orbstack": True,
             "docker_compose": docker_compose,
-            "falkordb_port": 6379,
             "environment": cleaned_context,
         }
 

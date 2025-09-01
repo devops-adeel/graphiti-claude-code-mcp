@@ -121,11 +121,11 @@ if [ -f "$CONFIG_FILE" ]; then
         echo "   Fix with: make fix-config"
     fi
 
-    # Check FALKORDB_DATABASE
-    if grep -q "FALKORDB_DATABASE=shared_gtd_knowledge" "$CONFIG_FILE"; then
-        echo -e "${GREEN}✅ FALKORDB_DATABASE correctly set to 'shared_gtd_knowledge'${NC}"
+    # Check NEO4J_DATABASE
+    if grep -q "NEO4J_DATABASE=neo4j" "$CONFIG_FILE"; then
+        echo -e "${GREEN}✅ NEO4J_DATABASE correctly set to 'neo4j' (Community Edition)${NC}"
     else
-        echo -e "${RED}❌ FALKORDB_DATABASE is not 'shared_gtd_knowledge'${NC}"
+        echo -e "${RED}❌ NEO4J_DATABASE is not 'neo4j' (Community Edition requirement)${NC}"
         echo "   Fix with: make fix-config"
     fi
 else
@@ -147,7 +147,7 @@ if op inject -i secrets/.env.1password >/dev/null 2>&1; then
     # Show what secrets will be available
     echo ""
     echo "Available secrets:"
-    echo "  • OPENAI_API_KEY (from FalkorDB/Integration)"
+    echo "  • OPENAI_API_KEY (from Neo4j/Integration)"
     echo "  • LANGFUSE_PUBLIC_KEY (from Langfuse/Integration)"
     echo "  • LANGFUSE_SECRET_KEY (from Langfuse/Integration)"
     echo "  • LANGFUSE_HOST (from Langfuse/Integration)"

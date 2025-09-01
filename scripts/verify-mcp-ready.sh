@@ -55,7 +55,7 @@ if [ -f "$CONFIG_FILE" ]; then
     else
         echo "      ⚠️  Group ID may not match GTD Coach"
     fi
-    if grep -q "FALKORDB_DATABASE=shared_gtd_knowledge" "$CONFIG_FILE"; then
+    if grep -q "NEO4J_DATABASE=shared_gtd_knowledge" "$CONFIG_FILE"; then
         echo "      ✅ Database: shared_gtd_knowledge"
     else
         echo "      ⚠️  Database may not match GTD Coach"

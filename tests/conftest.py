@@ -35,10 +35,10 @@ def test_env():
         "LANGFUSE_PUBLIC_KEY": os.environ.get("LANGFUSE_PUBLIC_KEY", "test-public-key"),
         "LANGFUSE_SECRET_KEY": os.environ.get("LANGFUSE_SECRET_KEY", "test-secret-key"),
         "LANGFUSE_HOST": os.environ.get("LANGFUSE_HOST", "https://langfuse.local"),
-        "FALKORDB_HOST": os.environ.get("FALKORDB_HOST", "falkordb.local"),
-        "FALKORDB_PORT": os.environ.get("FALKORDB_PORT", "6379"),
+        "NEO4J_HOST": os.environ.get("NEO4J_HOST", "neo4j.graphiti.local"),
+        "NEO4J_PORT": os.environ.get("NEO4J_PORT", "7687"),
         "GRAPHITI_GROUP_ID": "test_graphiti_mcp",
-        "FALKORDB_DATABASE": "test_knowledge_graph",
+        "NEO4J_DATABASE": "neo4j",  # Must be "neo4j" for Community Edition
         "LOG_LEVEL": "ERROR",  # Reduce test noise
     }
 
@@ -166,8 +166,8 @@ def pytest_addoption(parser):
         help="Run tests against real Langfuse instance",
     )
     parser.addoption(
-        "--real-falkordb",
+        "--real-neo4j",
         action="store_true",
         default=False,
-        help="Run tests against real FalkorDB instance",
+        help="Run tests against real Neo4j instance",
     )

@@ -9,7 +9,8 @@ in 1Password - configuration values remain in .env.graphiti
 # 1Password Secret References
 # These are actual secrets that should never be hardcoded
 SECRET_REFS = {
-    "OPENAI_API_KEY": "op://HomeLab/37e5lxhox53xsvzp3ozau32nha/openai-api-key",
+    "NEO4J_PASSWORD": "op://HomeLab/fyc6yqttq2iwv7osdoe6odww3i/password",
+    "OPENAI_API_KEY": "op://HomeLab/zl4gkplqyb2dwixdmtgwwjipda/credential",
     "LANGFUSE_PUBLIC_KEY": "op://HomeLab/ctyxybforywkjp2krbdpeulzzq/langfuse-public-key",
     "LANGFUSE_SECRET_KEY": "op://HomeLab/ctyxybforywkjp2krbdpeulzzq/langfuse-secret-key",
     "LANGFUSE_HOST": "op://HomeLab/ctyxybforywkjp2krbdpeulzzq/langfuse-host",
@@ -19,9 +20,10 @@ SECRET_REFS = {
 # These remain in .env.graphiti and are not sensitive
 CONFIG_VALUES = {
     "GRAPHITI_GROUP_ID": "shared_knowledge",
-    "FALKORDB_DATABASE": "shared_gtd_knowledge",
-    # FALKORDB_HOST is now loaded from environment/config file
-    "FALKORDB_PORT": "6379",
+    "NEO4J_DATABASE": "neo4j",  # Must be "neo4j" for Community Edition
+    "NEO4J_HOST": "neo4j.graphiti.local",  # OrbStack domain
+    "NEO4J_PORT": "7687",
+    "NEO4J_USER": "neo4j",
     "OPENAI_MODEL": "gpt-4o-mini",
     "OPENAI_EMBEDDING_MODEL": "text-embedding-3-small",
     "MEMORY_DECAY_FACTOR": "0.95",

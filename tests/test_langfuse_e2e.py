@@ -36,7 +36,7 @@ class TestLangfuseE2EIntegration:
         analyzer.client = MockLangfuseClient(
             scenarios=["state_loss", "interrupt", "high_latency"]
         )
-        # Mock the memory to avoid FalkorDB connection
+        # Mock the memory to avoid Neo4j connection
         from unittest.mock import AsyncMock
 
         analyzer.memory = AsyncMock()

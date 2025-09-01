@@ -49,14 +49,14 @@ else
     echo "✅ Token valid for $DAYS_LEFT more days"
 fi
 
-# Check if FalkorDB is running
+# Check if Neo4j is running
 echo ""
-echo "🔍 Checking FalkorDB status..."
-if nc -z localhost 6379 2>/dev/null || nc -z localhost 6380 2>/dev/null; then
-    echo "✅ FalkorDB is running"
+echo "🔍 Checking Neo4j status..."
+if nc -z neo4j.graphiti.local 7687 2>/dev/null; then
+    echo "✅ Neo4j is running"
 else
-    echo "⚠️ FalkorDB doesn't appear to be running on port 6379 or 6380"
-    echo "Please ensure FalkorDB is running in OrbStack"
+    echo "⚠️ Neo4j doesn't appear to be running on port 7687"
+    echo "Please ensure Neo4j is running in OrbStack"
 fi
 
 # Export the token for Docker Compose

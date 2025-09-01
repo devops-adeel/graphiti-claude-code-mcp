@@ -28,9 +28,9 @@ class MockSecretsManager:
     # Test config values
     _test_config = {
         "GRAPHITI_GROUP_ID": "test_shared_knowledge",
-        "FALKORDB_DATABASE": "test_db",
-        "FALKORDB_HOST": "localhost",
-        "FALKORDB_PORT": "6379",
+        "NEO4J_DATABASE": "neo4j",
+        "NEO4J_HOST": "neo4j.graphiti.local",
+        "NEO4J_PORT": "7687",
         "OPENAI_MODEL": "gpt-4o-mini",
         "OPENAI_EMBEDDING_MODEL": "text-embedding-3-small",
         "MEMORY_DECAY_FACTOR": "0.95",

@@ -178,7 +178,7 @@ async def test_memory_integration():
         return True
     except Exception as e:
         print(f"✗ Memory integration failed: {e}")
-        print(f"  Hint: Check if FalkorDB is running and accessible")
+        print(f"  Hint: Check if Neo4j is running and accessible")
         return False
 
 
@@ -210,7 +210,7 @@ async def main():
         print(f"⚠️  {failures} test(s) failed")
         print("\nTroubleshooting:")
         print("1. Ensure Langfuse credentials are in ~/.env")
-        print("2. Verify FalkorDB is running (docker ps | grep falkordb)")
+        print("2. Verify Neo4j is running (docker ps | grep neo4j)")
         print("3. Check that analyze_langfuse_traces.py is accessible")
         return 1
     else:

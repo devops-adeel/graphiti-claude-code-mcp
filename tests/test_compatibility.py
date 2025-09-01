@@ -177,7 +177,7 @@ class TestGraphitiIntegration:
         # Mock Graphiti client search
         mock_results = [
             MockEntityEdge(fact="Docker uses port 6379"),
-            MockEntityEdge(fact="FalkorDB is running"),
+            MockEntityEdge(fact="Neo4j is running"),
         ]
 
         with patch.object(memory, "client") as mock_client:

@@ -14,7 +14,7 @@ from pathlib import Path
 
 # Set test environment
 os.environ["GRAPHITI_GROUP_ID"] = "test_shared_knowledge"
-os.environ["FALKORDB_DATABASE"] = "test_db"
+os.environ["NEO4J_DATABASE"] = "neo4j"  # Must be "neo4j" for Community Edition
 
 from graphiti_memory import SharedMemory, MemoryStatus, get_shared_memory
 from capture import PatternCapture, PatternType, get_pattern_capture
@@ -39,7 +39,7 @@ async def memory_with_mock(mock_graphiti_client):
     memory = SharedMemory()
 
     # Mock the initialization
-    with patch("graphiti_memory.FalkorDriver") as mock_driver:
+    with patch("graphiti_memory.Neo4jDriverAsync") as mock_driver:
         with patch("graphiti_memory.OpenAIClient") as mock_llm:
             with patch("graphiti_memory.OpenAIEmbedder") as mock_embedder:
                 with patch(

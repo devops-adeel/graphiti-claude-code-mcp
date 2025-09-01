@@ -42,8 +42,8 @@ class TestLangfuseMCPProtocol:
                 "LANGFUSE_HOST": os.environ.get(
                     "LANGFUSE_HOST", "https://langfuse.local"
                 ),
-                "FALKORDB_HOST": os.environ.get("FALKORDB_HOST", "falkordb.local"),
-                "FALKORDB_PORT": os.environ.get("FALKORDB_PORT", "6379"),
+                "NEO4J_HOST": os.environ.get("NEO4J_HOST", "neo4j.graphiti.local"),
+                "NEO4J_PORT": os.environ.get("NEO4J_PORT", "7687"),
                 "LOG_LEVEL": "ERROR",  # Reduce noise during tests
             },
             cwd=str(Path(__file__).parent.parent),  # Run from project root

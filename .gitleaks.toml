@@ -73,7 +73,7 @@ tags = ["configuration", "1password"]
 [rules.allowlist]
 description = "This is actually the correct way to reference 1Password items"
 regexes = [
-    '''op://HomeLab/[a-z0-9]{26}/[a-z\-]+'''
+    '''op://HomeLab/[a-z0-9]{26}/[a-zA-Z\-]+'''
 ]
 
 # Global allowlist for files that are expected to contain example secrets
@@ -83,6 +83,7 @@ paths = [
     '''\.env\.example''',
     '''\.env\.sample''',
     '''secrets/\.env\.1password''',  # This file only contains references, not actual secrets
+    '''config/secrets_manifest\.py''',  # This file only contains 1Password references
     '''docs/.*\.md''',  # Documentation can contain example secrets
     '''README\.md'''
 ]

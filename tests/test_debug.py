@@ -20,7 +20,7 @@ if home_env.exists():
                 os.environ["OPENAI_API_KEY"] = value.strip('"').strip("'")
                 break
 
-print(f"FalkorDB: {os.getenv('FALKORDB_HOST')}:{os.getenv('FALKORDB_PORT')}")
+print(f"Neo4j: {os.getenv('NEO4J_HOST')}:{os.getenv('NEO4J_PORT')}")
 print(
     f"OpenAI key set: {bool(os.getenv('OPENAI_API_KEY') and not os.getenv('OPENAI_API_KEY').startswith('placeholder'))}"
 )

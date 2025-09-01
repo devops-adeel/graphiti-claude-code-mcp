@@ -22,9 +22,9 @@ async def test_docker():
     # Get memory instance
     memory = await get_shared_memory()
 
-    print(f"✓ Connected to FalkorDB")
-    print(f"  - Host: {os.getenv('FALKORDB_HOST', 'localhost')}")
-    print(f"  - Port: {os.getenv('FALKORDB_PORT', '6379')}")
+    print(f"✓ Connected to Neo4j")
+    print(f"  - Host: {os.getenv('NEO4J_HOST', 'neo4j.graphiti.local')}")
+    print(f"  - Port: {os.getenv('NEO4J_PORT', '7687')}")
     print(f"  - Database: {memory.database}")
     print(f"  - Batch size: {memory.batch_size}")
     print(f"  - Group ID: {memory.group_id}")

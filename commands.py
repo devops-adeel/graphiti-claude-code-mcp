@@ -157,8 +157,8 @@ model: gpt-4.1-mini
 # Check running containers
 docker compose ps
 
-# Check specific service (FalkorDB on port 6379)
-docker exec falkordb redis-cli ping
+# Check specific service (Neo4j on port 7687)
+cypher-shell -a bolt://neo4j.graphiti.local:7687 "RETURN 1"
 
 # View recent logs
 docker compose logs -f --tail=50
@@ -166,8 +166,8 @@ docker compose logs -f --tail=50
 
 ### 2. Verify Services:
 ```bash
-# Check FalkorDB
-curl -s http://localhost:6379/ping || echo "FalkorDB not responding"
+# Check Neo4j
+curl -s http://neo4j.graphiti.local:7474 || echo "Neo4j not responding"
 
 # Check Netdata monitoring
 curl -s http://localhost:19999/api/v1/info | jq '.version' || echo "Netdata not available"
@@ -279,9 +279,9 @@ orb config get cpu
 If you find a new fix, it will be automatically captured for future use.
 
 ## Port Configuration Reminder:
-- FalkorDB runs on port 6379 (standard Redis port)
+- Neo4j runs on port 7687 (Bolt protocol) and 7474 (Browser)
 - Netdata monitoring on port 19999
-- Always check port conflicts with: `lsof -i :6379`
+- Always check port conflicts with: `lsof -i :7687`
 """
 
         # Save command

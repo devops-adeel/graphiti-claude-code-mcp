@@ -8,9 +8,9 @@ import os
 import sys
 from pathlib import Path
 
-# Set correct FalkorDB port
-os.environ["FALKORDB_PORT"] = "6379"
-os.environ["FALKORDB_HOST"] = "localhost"
+# Set correct Neo4j port
+os.environ["NEO4J_PORT"] = "7687"
+os.environ["NEO4J_HOST"] = "neo4j.graphiti.local"
 
 sys.path.insert(0, str(Path(__file__).parent))
 
@@ -19,22 +19,22 @@ from graphiti_memory import SharedMemory
 
 async def test_simple():
     """Simple test of batch processing"""
-    print("Testing batch processing with FalkorDB on port 6379...")
+    print("Testing batch processing with Neo4j on port 7687...")
 
     # Create memory instance directly
     memory = SharedMemory()
 
     # Print configuration
     print(f"Configured with:")
-    print(f"  - Host: {os.getenv('FALKORDB_HOST', 'localhost')}")
-    print(f"  - Port: {os.getenv('FALKORDB_PORT', '6379')}")
+    print(f"  - Host: {os.getenv('NEO4J_HOST', 'neo4j.graphiti.local')}")
+    print(f"  - Port: {os.getenv('NEO4J_PORT', '7687')}")
     print(f"  - Database: {memory.database}")
     print(f"  - Batch size: {memory.batch_size}")
 
     try:
         # Initialize
         await memory.initialize()
-        print("✓ Connected to FalkorDB")
+        print("✓ Connected to Neo4j")
 
         # Test adding a single memory
         content = {"title": "Test Memory", "description": "Testing batch processing"}

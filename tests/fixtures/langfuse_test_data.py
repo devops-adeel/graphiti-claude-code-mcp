@@ -13,7 +13,7 @@ import uuid
 # Add parent directory to path for imports
 sys.path.insert(0, str(Path(__file__).parent.parent.parent))
 
-from langfuse_models import (
+from langfuse_integration.langfuse_models import (
     LangfuseObservation,
     LangfuseTrace,
     DetectedPattern,

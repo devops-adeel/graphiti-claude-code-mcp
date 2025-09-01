@@ -23,15 +23,17 @@ if Path("/.dockerenv").exists():  # Running in Docker
     load_dotenv(".env", override=True)  # Override with mounted .env for OPENAI_API_KEY
 
     # OrbStack uses custom domains for container-to-container communication
-    # FalkorDB is accessible at falkordb.local:6379 from containers
+    # AI-CONTEXT: Neo4j graph database via OrbStack domain
+    # Connection: bolt://neo4j.graphiti.local:7687
+    # Database: "neo4j" (Community Edition requirement)
     logger_msg = "Running in Docker with OrbStack networking"
 
-    # Verify FalkorDB configuration
-    falkordb_host = os.getenv("FALKORDB_HOST", "falkordb.local")
-    falkordb_port = os.getenv("FALKORDB_PORT", "6379")
+    # Verify Neo4j configuration
+    neo4j_host = os.getenv("NEO4J_HOST", "neo4j.graphiti.local")
+    neo4j_port = os.getenv("NEO4J_PORT", "7687")
 
     # Log configuration for debugging
-    sys.stderr.write(f"FalkorDB configuration: {falkordb_host}:{falkordb_port}\n")
+    sys.stderr.write(f"Neo4j configuration: {neo4j_host}:{neo4j_port}\n")
     sys.stderr.flush()
 else:
     # Local development
@@ -58,21 +60,26 @@ async def main():
         from mcp.server.models import InitializationOptions
         from mcp.server import NotificationOptions
 
-        # Test FalkorDB connectivity before starting server
+        # Test Neo4j connectivity before starting server
         if Path("/.dockerenv").exists():
-            logger.info("Testing FalkorDB connectivity...")
+            logger.info("Testing Neo4j connectivity...")
             try:
-                from falkordb import FalkorDB
+                from neo4j import GraphDatabase
 
-                db = FalkorDB(
-                    host=os.getenv("FALKORDB_HOST", "falkordb.local"),
-                    port=int(os.getenv("FALKORDB_PORT", "6379")),
+                uri = f"bolt://{os.getenv('NEO4J_HOST', 'neo4j.graphiti.local')}:{os.getenv('NEO4J_PORT', '7687')}"
+                driver = GraphDatabase.driver(
+                    uri,
+                    auth=(
+                        os.getenv("NEO4J_USER", "neo4j"),
+                        os.getenv("NEO4J_PASSWORD", ""),
+                    ),
                 )
-                # Quick ping test
-                db.select_graph("test_connection")
-                logger.info("✅ FalkorDB connection successful")
+                # Quick connectivity test
+                driver.verify_connectivity()
+                driver.close()
+                logger.info("✅ Neo4j connection successful")
             except Exception as e:
-                logger.warning(f"⚠️ FalkorDB connection test failed: {e}")
+                logger.warning(f"⚠️ Neo4j connection test failed: {e}")
                 logger.warning(
                     "Server will start but may have issues with memory operations"
                 )
@@ -82,8 +89,8 @@ async def main():
 
         logger.info("Starting Graphiti MCP Server (stdio transport)")
         logger.info(logger_msg)
-        logger.info(f"FalkorDB Host: {os.getenv('FALKORDB_HOST', 'falkordb.local')}")
-        logger.info(f"FalkorDB Port: {os.getenv('FALKORDB_PORT', '6379')}")
+        logger.info(f"Neo4j Host: {os.getenv('NEO4J_HOST', 'neo4j.graphiti.local')}")
+        logger.info(f"Neo4j Port: {os.getenv('NEO4J_PORT', '7687')}")
         logger.info(
             f"Group ID: {os.getenv('GRAPHITI_GROUP_ID', 'shared_gtd_knowledge')}"
         )
