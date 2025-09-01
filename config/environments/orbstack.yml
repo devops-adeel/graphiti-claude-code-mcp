@@ -38,17 +38,17 @@ network:
   dns_suffix: .local
 
   # Docker network for inter-container communication
-  docker_network: langfuse-prod_default
+  docker_network: orbstack-shared
 
   # Health check endpoints
   health_check_urls:
     - https://langfuse.local/api/health
     - http://langfuse-web:3000/api/health
 
-# FalkorDB Configuration
-falkordb:
-  host: falkordb.local
-  port: 6379
+# Neo4j Configuration
+neo4j:
+  host: neo4j.graphiti.local
+  port: 7687
   database: shared_knowledge
 
 # Logging

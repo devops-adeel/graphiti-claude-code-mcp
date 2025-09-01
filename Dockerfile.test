@@ -3,8 +3,8 @@ FROM python:3.11-slim
 
 WORKDIR /app
 
-# Install redis-cli for health checks
-RUN apt-get update && apt-get install -y redis-tools && \
+# Install netcat for health checks
+RUN apt-get update && apt-get install -y netcat-openbsd && \
     rm -rf /var/lib/apt/lists/*
 
 # Copy requirements and install dependencies
@@ -18,9 +18,9 @@ COPY . .
 # Set environment variables for testing
 ENV PYTHONPATH=/app
 ENV LOG_LEVEL=ERROR
-ENV FALKORDB_HOST=falkordb.local
-ENV FALKORDB_PORT=6379
-ENV LANGFUSE_HOST=langfuse.local
+ENV NEO4J_URI=bolt://neo4j.graphiti.local:7687
+ENV NEO4J_USER=neo4j
+ENV LANGFUSE_HOST=https://langfuse.local
 
 # Default command runs all tests
 CMD ["python", "-m", "pytest", "tests/test_langfuse*.py", "-v"]

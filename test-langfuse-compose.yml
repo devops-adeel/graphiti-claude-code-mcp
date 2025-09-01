@@ -5,7 +5,7 @@ services:
     image: python:3.11-slim
     container_name: langfuse-sdk-test
     networks:
-      - langfuse_default
+      - orbstack-shared
     environment:
       # Use environment variables from host or .env file
       # Never hardcode credentials directly
@@ -18,5 +18,6 @@ services:
     command: sh -c "pip install --quiet langfuse httpx && python test_langfuse_sdk.py"
 
 networks:
-  langfuse_default:
+  orbstack-shared:
+    name: orbstack-shared
     external: true

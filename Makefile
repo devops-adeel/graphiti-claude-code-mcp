@@ -35,10 +35,10 @@ fix-config: ## Fix configuration to match GTD Coach
 	@echo "$(BLUE)Fixing configuration alignment with GTD Coach...$(NC)"
 	@cp .env.graphiti .env.graphiti.backup 2>/dev/null || true
 	@sed -i '' 's/GRAPHITI_GROUP_ID=shared_gtd_knowledge/GRAPHITI_GROUP_ID=shared_knowledge/g' .env.graphiti
-	@sed -i '' 's/FALKORDB_DATABASE=shared_knowledge_graph/FALKORDB_DATABASE=shared_gtd_knowledge/g' .env.graphiti
+	@sed -i '' 's/NEO4J_DATABASE=shared_knowledge_graph/NEO4J_DATABASE=shared_gtd_knowledge/g' .env.graphiti
 	@echo "$(GREEN)✅ Configuration fixed$(NC)"
 	@echo "  GRAPHITI_GROUP_ID: shared_knowledge"
-	@echo "  FALKORDB_DATABASE: shared_gtd_knowledge"
+	@echo "  NEO4J_DATABASE: shared_gtd_knowledge"
 
 .PHONY: verify-config
 verify-config: ## Verify configuration matches GTD Coach
@@ -50,10 +50,10 @@ verify-config: ## Verify configuration matches GTD Coach
 		echo "  Run: make fix-config"; \
 		exit 1; \
 	fi
-	@if grep -q "FALKORDB_DATABASE=shared_gtd_knowledge" .env.graphiti; then \
-		echo "$(GREEN)✅ FALKORDB_DATABASE correct$(NC)"; \
+	@if grep -q "NEO4J_DATABASE=shared_gtd_knowledge" .env.graphiti; then \
+		echo "$(GREEN)✅ NEO4J_DATABASE correct$(NC)"; \
 	else \
-		echo "$(RED)❌ FALKORDB_DATABASE incorrect$(NC)"; \
+		echo "$(RED)❌ NEO4J_DATABASE incorrect$(NC)"; \
 		echo "  Run: make fix-config"; \
 		exit 1; \
 	fi
@@ -161,11 +161,11 @@ health-check-all: ## Run comprehensive health check (verbose + fix)
 # === Testing & Verification ===
 
 .PHONY: test-connection
-test-connection: ## Test FalkorDB connection
-	@echo "$(BLUE)Testing FalkorDB connection...$(NC)"
-	@docker compose run --rm test-runner "redis-cli -h falkordb -p 6379 ping" && \
-		echo "$(GREEN)✅ FalkorDB is accessible$(NC)" || \
-		echo "$(RED)❌ Cannot connect to FalkorDB$(NC)"
+test-connection: ## Test Neo4j connection
+	@echo "$(BLUE)Testing Neo4j connection...$(NC)"
+	@docker compose run --rm test-runner "nc -z neo4j.graphiti.local 7687" && \
+		echo "$(GREEN)✅ Neo4j is accessible$(NC)" || \
+		echo "$(RED)❌ Cannot connect to Neo4j$(NC)"
 
 .PHONY: test-health-1p
 test-health-1p: ## Run health check with 1Password secrets
@@ -173,7 +173,7 @@ test-health-1p: ## Run health check with 1Password secrets
 	@source $(SERVICE_TOKEN_FILE) && \
 	op run --env-file="secrets/.env.1password" -- \
 	docker compose run --rm \
-	-e FALKORDB_HOST=falkordb \
+	-e NEO4J_URI=bolt://neo4j.graphiti.local:7687 \
 	graphiti-mcp python scripts/health_check_memory.py
 
 .PHONY: test-mcp-1p
@@ -182,7 +182,7 @@ test-mcp-1p: ## Test MCP server with 1Password
 	@source $(SERVICE_TOKEN_FILE) && \
 	op run --env-file="secrets/.env.1password" -- \
 	docker compose run --rm \
-	-e FALKORDB_HOST=falkordb \
+	-e NEO4J_URI=bolt://neo4j.graphiti.local:7687 \
 	graphiti-mcp python mcp_server.py
 
 .PHONY: test-sharing
@@ -229,7 +229,7 @@ info: ## Show current configuration
 	@echo "$(BLUE)Current Configuration:$(NC)"
 	@echo ""
 	@echo "Knowledge Sharing:"
-	@grep "GRAPHITI_GROUP_ID\|FALKORDB_DATABASE" .env.graphiti | sed 's/^/  /'
+	@grep "GRAPHITI_GROUP_ID\|NEO4J_DATABASE" .env.graphiti | sed 's/^/  /'
 	@echo ""
 	@echo "1Password Status:"
 	@if [ -f $(SERVICE_TOKEN_FILE) ]; then \
@@ -318,7 +318,7 @@ test-langfuse-local: ## Test Langfuse connection locally
 test-langfuse-docker: ## Test Langfuse connection from Docker container
 	@echo "$(BLUE)Testing Langfuse connection from Docker...$(NC)"
 	@docker run --rm \
-		--network langfuse-prod_default \
+		--network orbstack-shared \
 		-e LANGFUSE_HOST=http://langfuse-web:3000 \
 		-e LANGFUSE_PUBLIC_KEY=$$(op item get ctyxybforywkjp2krbdpeulzzq --fields "Langfuse.langfuse-public-key" 2>/dev/null) \
 		-e LANGFUSE_SECRET_KEY=$$(op item get ctyxybforywkjp2krbdpeulzzq --fields "Langfuse.langfuse-secret-key" 2>/dev/null) \
