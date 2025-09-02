@@ -160,6 +160,56 @@ test-connection: ## Test Neo4j connection
 		echo "$(GREEN)✅ Neo4j is accessible$(NC)" || \
 		echo "$(RED)❌ Cannot connect to Neo4j$(NC)"
 
+# === Behavioral Correlation Testing ===
+
+.PHONY: test-behavioral
+test-behavioral: ## Run behavioral correlation tests in Docker
+	@echo "$(BLUE)Running behavioral correlation tests...$(NC)"
+	@docker compose -f docker-compose.yml -f docker-compose.test.yml up test-behavioral --abort-on-container-exit
+	@echo "$(GREEN)✅ Behavioral tests completed$(NC)"
+	@echo "Results saved to test-results/"
+
+.PHONY: test-unit
+test-unit: ## Run unit tests (no Neo4j required)
+	@echo "$(BLUE)Running unit tests...$(NC)"
+	@python3 -m pytest tests/test_implicit_scoring_unit.py -v --tb=short
+	@echo "$(GREEN)✅ Unit tests completed$(NC)"
+
+.PHONY: test-integration
+test-integration: ## Run integration tests with Neo4j
+	@echo "$(BLUE)Starting Neo4j test instance...$(NC)"
+	@docker compose -f docker-compose.test.yml up -d neo4j-test
+	@echo "$(BLUE)Waiting for Neo4j to be ready...$(NC)"
+	@sleep 10
+	@echo "$(BLUE)Running integration tests...$(NC)"
+	@NEO4J_URI=bolt://localhost:7688 python3 -m pytest tests/test_implicit_scoring_integration.py -v --tb=short -m integration
+	@docker compose -f docker-compose.test.yml down neo4j-test
+	@echo "$(GREEN)✅ Integration tests completed$(NC)"
+
+.PHONY: test-docker
+test-docker: ## Run all tests in Docker environment
+	@echo "$(BLUE)Running all tests in Docker...$(NC)"
+	@docker compose -f docker-compose.yml -f docker-compose.test.yml up --abort-on-container-exit
+	@echo "$(GREEN)✅ All Docker tests completed$(NC)"
+
+.PHONY: test-coverage
+test-coverage: ## Generate test coverage report
+	@echo "$(BLUE)Generating test coverage report...$(NC)"
+	@python3 -m pytest tests/test_implicit_scoring_unit.py \
+		--cov=capture_extended --cov-report=html:test-results/coverage \
+		--cov-report=term
+	@echo "$(GREEN)✅ Coverage report generated in test-results/coverage$(NC)"
+
+.PHONY: test-clean
+test-clean: ## Clean test artifacts
+	@echo "$(BLUE)Cleaning test artifacts...$(NC)"
+	@rm -rf test-results/
+	@docker compose -f docker-compose.test.yml down -v
+	@echo "$(GREEN)✅ Test cleanup complete$(NC)"
+
+.PHONY: test
+test: test-unit test-integration ## Run all tests locally
+
 .PHONY: test-health-1p
 test-health-1p: ## Run health check with 1Password secrets
 	@echo "$(BLUE)Running health check with 1Password...$(NC)"
