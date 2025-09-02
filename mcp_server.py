@@ -25,24 +25,35 @@ from secrets_manager import SecretsManager
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
-# Import Langfuse for trace tagging (only if configured)
-try:
-    from langfuse import Langfuse
-    from langfuse.decorators import observe
+# Import Langfuse - MANDATORY for observability
+from langfuse import Langfuse
+from langfuse.decorators import observe, langfuse_context
 
-    # Initialize Langfuse client if API keys are available
-    if os.getenv("LANGFUSE_PUBLIC_KEY") and os.getenv("LANGFUSE_SECRET_KEY"):
-        langfuse_client = Langfuse()
-        LANGFUSE_ENABLED = True
-        logger.info("Langfuse tracing enabled for MCP server")
-    else:
-        langfuse_client = None
-        LANGFUSE_ENABLED = False
-        logger.info("Langfuse tracing disabled - no API keys configured")
-except ImportError:
-    langfuse_client = None
-    LANGFUSE_ENABLED = False
-    logger.info("Langfuse not installed - tracing disabled")
+# Initialize Langfuse client - REQUIRED
+LANGFUSE_PUBLIC_KEY = os.getenv("LANGFUSE_PUBLIC_KEY")
+LANGFUSE_SECRET_KEY = os.getenv("LANGFUSE_SECRET_KEY")
+
+if not LANGFUSE_PUBLIC_KEY or not LANGFUSE_SECRET_KEY:
+    error_msg = (
+        "LANGFUSE_PUBLIC_KEY and LANGFUSE_SECRET_KEY are REQUIRED. "
+        "Langfuse is mandatory for observability, scoring, and evaluation. "
+        "Please set these environment variables or add them to your .env file."
+    )
+    logger.error(error_msg)
+    raise ValueError(error_msg)
+
+try:
+    langfuse_client = Langfuse(
+        public_key=LANGFUSE_PUBLIC_KEY,
+        secret_key=LANGFUSE_SECRET_KEY,
+        host=os.getenv("LANGFUSE_HOST", "https://cloud.langfuse.com"),
+    )
+    LANGFUSE_ENABLED = True
+    logger.info("Langfuse tracing ENABLED - all operations will be traced")
+except Exception as e:
+    error_msg = f"Failed to initialize Langfuse (REQUIRED): {e}"
+    logger.error(error_msg)
+    raise ValueError(error_msg)
 
 
 # Comprehensive instructions for Claude Code
