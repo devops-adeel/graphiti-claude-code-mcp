@@ -27,33 +27,49 @@ logger = logging.getLogger(__name__)
 
 # Import Langfuse - MANDATORY for observability
 from langfuse import Langfuse
-from langfuse.decorators import observe, langfuse_context
 
-# Initialize Langfuse client - REQUIRED
-LANGFUSE_PUBLIC_KEY = os.getenv("LANGFUSE_PUBLIC_KEY")
-LANGFUSE_SECRET_KEY = os.getenv("LANGFUSE_SECRET_KEY")
+# Lazy initialization for Langfuse client
+_langfuse_client = None
+LANGFUSE_ENABLED = False
 
-if not LANGFUSE_PUBLIC_KEY or not LANGFUSE_SECRET_KEY:
-    error_msg = (
-        "LANGFUSE_PUBLIC_KEY and LANGFUSE_SECRET_KEY are REQUIRED. "
-        "Langfuse is mandatory for observability, scoring, and evaluation. "
-        "Please set these environment variables or add them to your .env file."
-    )
-    logger.error(error_msg)
-    raise ValueError(error_msg)
 
-try:
-    langfuse_client = Langfuse(
-        public_key=LANGFUSE_PUBLIC_KEY,
-        secret_key=LANGFUSE_SECRET_KEY,
-        host=os.getenv("LANGFUSE_HOST", "https://cloud.langfuse.com"),
-    )
-    LANGFUSE_ENABLED = True
-    logger.info("Langfuse tracing ENABLED - all operations will be traced")
-except Exception as e:
-    error_msg = f"Failed to initialize Langfuse (REQUIRED): {e}"
-    logger.error(error_msg)
-    raise ValueError(error_msg)
+async def get_langfuse_client():
+    """Get or initialize the Langfuse client lazily.
+
+    This function ensures Langfuse is only initialized after secrets are loaded.
+    Uses a singleton pattern to avoid multiple initializations.
+    """
+    global _langfuse_client, LANGFUSE_ENABLED
+
+    if _langfuse_client is not None:
+        return _langfuse_client
+
+    # Check for required environment variables
+    LANGFUSE_PUBLIC_KEY = os.getenv("LANGFUSE_PUBLIC_KEY")
+    LANGFUSE_SECRET_KEY = os.getenv("LANGFUSE_SECRET_KEY")
+
+    if not LANGFUSE_PUBLIC_KEY or not LANGFUSE_SECRET_KEY:
+        error_msg = (
+            "LANGFUSE_PUBLIC_KEY and LANGFUSE_SECRET_KEY are REQUIRED. "
+            "Langfuse is mandatory for observability, scoring, and evaluation. "
+            "Please ensure 1Password secrets are properly injected."
+        )
+        logger.error(error_msg)
+        raise ValueError(error_msg)
+
+    try:
+        _langfuse_client = Langfuse(
+            public_key=LANGFUSE_PUBLIC_KEY,
+            secret_key=LANGFUSE_SECRET_KEY,
+            host=os.getenv("LANGFUSE_HOST", "https://cloud.langfuse.com"),
+        )
+        LANGFUSE_ENABLED = True
+        logger.info("Langfuse tracing ENABLED - all operations will be traced")
+        return _langfuse_client
+    except Exception as e:
+        error_msg = f"Failed to initialize Langfuse (REQUIRED): {e}"
+        logger.error(error_msg)
+        raise ValueError(error_msg)
 
 
 # Comprehensive instructions for Claude Code
@@ -145,7 +161,7 @@ async def list_resources() -> List[Resource]:
         Resource(
             uri="memory://shared-knowledge",
             name="Shared Knowledge Graph",
-            description=f"Access to shared knowledge graph: {os.getenv('GRAPHITI_GROUP_ID', 'shared_gtd_knowledge')}",
+            description=f"Access to shared knowledge graph: {os.getenv('GRAPHITI_GROUP_ID', 'shared_knowledge')}",
             mimeType="application/json",
         ),
         Resource(
@@ -658,8 +674,13 @@ async def call_tool(name: str, arguments: Dict[str, Any]) -> Any:
     trace = None
     span = None
 
-    # Tag this operation as MCP-internal if Langfuse is enabled
-    if LANGFUSE_ENABLED and langfuse_client:
+    # Tag this operation as MCP-internal if Langfuse is available
+    try:
+        langfuse_client = await get_langfuse_client()
+    except Exception:
+        langfuse_client = None
+
+    if langfuse_client:
         # Create a trace with MCP tags to prevent analysis loops
         trace = langfuse_client.trace(
             name=f"mcp_tool_{name}",
@@ -1114,8 +1135,18 @@ async def main():
                 )
 
     logger.info(
-        f"Shared group_id: {os.getenv('GRAPHITI_GROUP_ID', 'shared_gtd_knowledge')}"
+        f"Shared group_id: {os.getenv('GRAPHITI_GROUP_ID', 'shared_knowledge')}"
     )
+
+    # Initialize Langfuse client now that secrets are loaded
+    try:
+        global LANGFUSE_ENABLED
+        langfuse_client = await get_langfuse_client()
+        LANGFUSE_ENABLED = True
+        logger.info("✅ Langfuse client initialized successfully")
+    except Exception as e:
+        logger.error(f"❌ Failed to initialize Langfuse: {e}")
+        raise SystemExit(f"Cannot start MCP server without Langfuse: {e}")
 
     # Initialize components (they can now access secrets from environment)
     memory = await get_shared_memory()

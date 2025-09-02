@@ -23,7 +23,7 @@ RUN --mount=type=cache,target=/root/.cache/pip \
         mcp>=1.0.0 \
         neo4j>=5.0.0 \
         tiktoken>=0.5.0 \
-        langfuse>=2.0.0
+        langfuse>=3.3.0
 
 # Copy only necessary source files
 COPY *.py ./

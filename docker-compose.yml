@@ -17,10 +17,13 @@ services:
       - NEO4J_USER=${NEO4J_USER:-neo4j}
       - NEO4J_DATABASE=${NEO4J_DATABASE:-neo4j}  # Must be "neo4j" for Community Edition
       # Password retrieved from 1Password at runtime
+      - NEO4J_PASSWORD=${NEO4J_PASSWORD}
 
       # Non-secret configuration values
       - OPENAI_MODEL=${OPENAI_MODEL:-gpt-4o-mini}
       - OPENAI_EMBEDDING_MODEL=${OPENAI_EMBEDDING_MODEL:-text-embedding-3-small}
+      # OpenAI API Key (injected by op run)
+      - OPENAI_API_KEY=${OPENAI_API_KEY}
 
       # Fallback mode for when 1Password is unavailable
       - GRAPHITI_FALLBACK_MODE=${GRAPHITI_FALLBACK_MODE:-false}
@@ -39,6 +42,9 @@ services:
       # Langfuse Configuration (Non-secret values)
       - LANGFUSE_HOST=${LANGFUSE_HOST:-https://langfuse.local}
       - LANGFUSE_TRACING_ENABLED=${LANGFUSE_TRACING_ENABLED:-true}
+      # Langfuse Secrets (injected by op run)
+      - LANGFUSE_PUBLIC_KEY=${LANGFUSE_PUBLIC_KEY}
+      - LANGFUSE_SECRET_KEY=${LANGFUSE_SECRET_KEY}
 
       # OpenTelemetry Configuration
       - OTEL_EXPORTER_OTLP_ENDPOINT=${OTEL_EXPORTER_OTLP_ENDPOINT:-http://alloy.local:4317}
