@@ -517,6 +517,7 @@ class SharedMemory:
 
             # Initialize Graphiti with Neo4j credentials
             # Note: graphiti-core now accepts credentials directly, not via driver
+            # Group_id is set on RawEpisode objects, not on Graphiti client
             self.client = Graphiti(
                 uri=os.getenv("NEO4J_URI", "bolt://neo4j.graphiti.local:7687"),
                 user=os.getenv("NEO4J_USER", "neo4j"),
@@ -616,6 +617,19 @@ class SharedMemory:
             # Clear the buffer
             self.episode_buffer = []
 
+            # Verify group_id propagation for newly created nodes
+            try:
+                verification_passed = await self._verify_group_id_propagation()
+                if not verification_passed:
+                    logger.warning(
+                        "Group ID verification failed - nodes may have incorrect group_id. "
+                        "Check Neo4j directly for details."
+                    )
+            except ValueError as ve:
+                # Critical error - nodes created without group_id
+                logger.error(f"Critical group_id propagation failure: {ve}")
+                # Don't raise here to avoid breaking the flush, but log prominently
+
             return last_episode_id
 
         except Exception as e:
@@ -628,6 +642,71 @@ class SharedMemory:
         async with self.flush_lock:
             if self.episode_buffer:
                 await self._flush_episode_buffer()
+
+    async def _verify_group_id_propagation(self, episode_id: str = None) -> bool:
+        """
+        Verify that recently created nodes have the correct group_id.
+
+        Args:
+            episode_id: Optional episode ID to check specific nodes
+
+        Returns:
+            True if verification passes, False otherwise
+
+        Raises:
+            ValueError: If nodes have incorrect group_id
+        """
+        try:
+            # Query Neo4j directly to check recent nodes
+            query = """
+            MATCH (n)
+            WHERE n.created_at > datetime() - duration('PT1H')
+            RETURN
+                count(n) as total,
+                sum(CASE WHEN n.group_id = $group_id THEN 1 ELSE 0 END) as correct,
+                sum(CASE WHEN n.group_id = '' THEN 1 ELSE 0 END) as empty,
+                collect(DISTINCT n.group_id) as group_ids
+            """
+
+            result = await self.client.driver.execute_query(
+                query, parameters={"group_id": self.group_id}
+            )
+
+            if result and len(result) > 0:
+                row = result[0]
+                total = row.get("total", 0)
+                correct = row.get("correct", 0)
+                empty = row.get("empty", 0)
+                group_ids = row.get("group_ids", [])
+
+                if total > 0:
+                    if empty > 0:
+                        logger.error(
+                            f"Group ID propagation failure: {empty}/{total} nodes have empty group_id. "
+                            f"Found group_ids: {group_ids}"
+                        )
+                        raise ValueError(
+                            f"Critical: {empty} nodes created without group_id. "
+                            f"Expected '{self.group_id}', found: {group_ids}"
+                        )
+
+                    if correct < total:
+                        logger.warning(
+                            f"Group ID mismatch: {total - correct}/{total} nodes have wrong group_id. "
+                            f"Expected '{self.group_id}', found: {group_ids}"
+                        )
+                        return False
+
+                    logger.debug(
+                        f"✓ Group ID verification passed: {correct}/{total} nodes correct"
+                    )
+                    return True
+
+            return True  # No recent nodes to verify
+
+        except Exception as e:
+            logger.error(f"Failed to verify group_id propagation: {e}")
+            return False
 
     def _detect_cross_references(self, content: dict) -> List[str]:
         """Detect connections between GTD and coding domains"""

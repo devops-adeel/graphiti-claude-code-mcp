@@ -328,6 +328,59 @@ class HealthCheck:
         self.results.append(("Storage", storage_ok))
         return storage_ok
 
+    async def check_group_id_propagation(self) -> bool:
+        """Stage 4b: Verify group_id propagation"""
+        self.log_section("Stage 4b: Group ID Verification")
+
+        group_id_ok = True
+
+        try:
+            memory = await self.get_memory()
+            expected_group_id = memory.group_id
+
+            if self.verbose:
+                self.log(f"Expected group_id: {expected_group_id}", "debug")
+                self.log("Checking nodes in Neo4j for correct group_id...", "debug")
+
+            # Verify group_id propagation
+            verification_passed = await memory._verify_group_id_propagation()
+
+            if verification_passed:
+                self.log(
+                    f"Group ID propagation: OK (all nodes have '{expected_group_id}')",
+                    "success",
+                )
+            else:
+                self.log("Group ID propagation: FAILED", "error")
+                group_id_ok = False
+
+                if self.fix:
+                    self.log("Fix suggestions:", "warning")
+                    print("  1. Update existing nodes with correct group_id:")
+                    print(
+                        f"     MATCH (n) WHERE n.group_id = '' SET n.group_id = '{expected_group_id}'"
+                    )
+                    print("  2. Restart MCP server to pick up changes")
+                    print(
+                        "  3. Verify Graphiti client initialization includes group_id parameter"
+                    )
+
+            # Additional check: count nodes by group_id
+            if self.verbose:
+                query = """
+                MATCH (n)
+                RETURN n.group_id as group_id, count(n) as count
+                ORDER BY count DESC
+                """
+                self.log(f"Query: {query}", "query")
+
+        except Exception as e:
+            self.log(f"Group ID verification failed: {str(e)}", "error")
+            group_id_ok = False
+
+        self.results.append(("Group ID", group_id_ok))
+        return group_id_ok
+
     async def check_retrieval(self) -> bool:
         """Stage 5: Test retrieval and search"""
         self.log_section("Stage 5: Retrieval Test")
@@ -487,6 +540,7 @@ class HealthCheck:
             ("Connections", self.check_connections),
             ("Capture", self.check_capture),
             ("Storage", self.check_storage),
+            ("Group ID", self.check_group_id_propagation),
             ("Retrieval", self.check_retrieval),
             ("Temporal Decay", self.check_temporal),
             ("Cross-Domain", self.check_cross_domain),
