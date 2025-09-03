@@ -36,39 +36,58 @@ async def test_loop_prevention():
 
     # Step 1: Create a test trace with MCP tags (simulating MCP operation)
     print("\n1️⃣ Creating MCP-tagged test trace...")
-    langfuse = Langfuse()
 
-    # Create a trace that should be filtered out
-    mcp_trace = langfuse.trace(
-        name="mcp_tool_test_loop_prevention",
-        tags=["mcp-internal", "mcp-analyzer", "test"],
-        metadata={
-            "source": "mcp-server",
-            "component": "test-script",
-            "purpose": "verify-loop-prevention",
-        },
+    # Initialize Langfuse v3 SDK
+    from langfuse import Langfuse, get_client
+
+    Langfuse(
+        public_key=os.getenv("LANGFUSE_PUBLIC_KEY"),
+        secret_key=os.getenv("LANGFUSE_SECRET_KEY"),
+        host="https://langfuse.local",
     )
+    langfuse = get_client()
 
-    # Add some operations to the trace
-    span = mcp_trace.span(name="test_operation", metadata={"test": True})
-    span.end()
-    mcp_trace.update(output="Test trace for loop prevention")
+    # Create a trace that should be filtered out (v3 pattern)
+    mcp_trace_id = None
+    with langfuse.start_as_current_span(
+        name="mcp_tool_test_loop_prevention"
+    ) as mcp_span:
+        mcp_span.update_trace(
+            tags=["mcp-internal", "mcp-analyzer", "test"],
+            metadata={
+                "source": "mcp-server",
+                "component": "test-script",
+                "purpose": "verify-loop-prevention",
+            },
+        )
+
+        # Add some operations to the trace
+        with langfuse.start_as_current_span(
+            name="test_operation", metadata={"test": True}
+        ):
+            pass  # Span auto-closes
+
+        mcp_span.update_trace(output="Test trace for loop prevention")
+        mcp_trace_id = mcp_span.trace_id
 
     # Force flush to ensure trace is sent
     langfuse.flush()
-    print(f"   Created trace ID: {mcp_trace.id}")
+    print(f"   Created trace ID: {mcp_trace_id}")
     print("   Tags: ['mcp-internal', 'mcp-analyzer', 'test']")
 
     # Step 2: Create a normal application trace (should NOT be filtered)
     print("\n2️⃣ Creating normal application trace...")
-    app_trace = langfuse.trace(
-        name="application_operation",
-        tags=["production", "api-call"],
-        metadata={"source": "application", "endpoint": "/api/test"},
-    )
-    app_trace.update(output="Normal application trace")
+    app_trace_id = None
+    with langfuse.start_as_current_span(name="application_operation") as app_span:
+        app_span.update_trace(
+            tags=["production", "api-call"],
+            metadata={"source": "application", "endpoint": "/api/test"},
+        )
+        app_span.update_trace(output="Normal application trace")
+        app_trace_id = app_span.trace_id
+
     langfuse.flush()
-    print(f"   Created trace ID: {app_trace.id}")
+    print(f"   Created trace ID: {app_trace_id}")
     print("   Tags: ['production', 'api-call']")
 
     # Wait a moment for traces to be indexed
@@ -87,10 +106,10 @@ async def test_loop_prevention():
     app_trace_found = False
 
     for trace in result.get("traces", []):
-        if trace.get("trace_id") == mcp_trace.id:
+        if trace.get("trace_id") == mcp_trace_id:
             mcp_trace_found = True
             print(f"   ❌ MCP trace was NOT filtered: {trace.get('trace_id')}")
-        if trace.get("trace_id") == app_trace.id:
+        if trace.get("trace_id") == app_trace_id:
             app_trace_found = True
             print(f"   ✅ Application trace was found: {trace.get('trace_id')}")
 
@@ -150,20 +169,32 @@ async def test_metadata_filtering():
     print("=" * 60)
 
     analyzer = await get_langfuse_analyzer()
-    langfuse = Langfuse()
+
+    # Initialize Langfuse v3 SDK
+    from langfuse import Langfuse, get_client
+
+    Langfuse(
+        public_key=os.getenv("LANGFUSE_PUBLIC_KEY"),
+        secret_key=os.getenv("LANGFUSE_SECRET_KEY"),
+        host="https://langfuse.local",
+    )
+    langfuse = get_client()
 
     # Create trace with metadata but no tags
     print("\n1️⃣ Creating trace with MCP metadata (no tags)...")
-    metadata_trace = langfuse.trace(
-        name="metadata_test_trace",
-        metadata={
-            "source": "mcp-server",
-            "component": "langfuse-analyzer",
-            "version": "1.0.0",
-        },
-    )
+    metadata_trace_id = None
+    with langfuse.start_as_current_span(name="metadata_test_trace") as metadata_span:
+        metadata_span.update_trace(
+            metadata={
+                "source": "mcp-server",
+                "component": "langfuse-analyzer",
+                "version": "1.0.0",
+            }
+        )
+        metadata_trace_id = metadata_span.trace_id
+
     langfuse.flush()
-    print(f"   Created trace ID: {metadata_trace.id}")
+    print(f"   Created trace ID: {metadata_trace_id}")
 
     await asyncio.sleep(3)
 
