@@ -1,5 +1,7 @@
 # The Philosophy of Never Forgetting
 
+> 🎬 **Visual Learner?** Watch ["The AI That Never Forgets"](https://github.com/devops-adeel/graphiti-claude-code-mcp/releases/latest/download/The_AI_That_Never_Forgets.mp4) for an animated exploration of these concepts, or read the [full transcript](../video-transcripts/the-ai-that-never-forgets.md).
+
 ## Why Memories Never Delete
 
 The Graphiti memory system embodies a fundamental principle: **memories are immutable history**. Like human memory, we don't erase experiences—we layer new understanding over old, creating a rich tapestry of learning.

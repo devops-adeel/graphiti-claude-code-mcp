@@ -233,7 +233,7 @@ make health-check-all > diagnostics.log 2>&1
 ```
 
 2. Check GitHub issues:
-https://github.com/yourusername/graphiti-claude-code-mcp/issues
+https://github.com/devops-adeel/graphiti-claude-code-mcp/issues
 
 3. Review logs with context:
 ```bash

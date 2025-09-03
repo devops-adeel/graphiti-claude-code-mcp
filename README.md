@@ -2,6 +2,36 @@
 
 A temporal knowledge graph memory layer for Claude Code that captures coding patterns, solutions, and troubleshooting plays. Shares knowledge with GTD Coach for cross-domain insights.
 
+## 🧠 The Core Innovation
+
+<div align="center">
+  <!-- Animated GIF Teaser - Immediate Visual Hook -->
+  <img src="docs/assets/images/one-mind-teaser.gif" alt="One Mind Concept Animation" width="600">
+
+  <!-- Quick Stats for Decision Makers -->
+  <p>
+    <strong>✓ Recalls solutions from weeks ago</strong> •
+    <strong>✓ Cross-domain insights</strong> •
+    <strong>✓ Never loses context</strong>
+  </p>
+
+  <!-- Progressive Disclosure -->
+  <details>
+    <summary><b>🎬 Watch the Full Concept Video (5:38)</b></summary>
+
+  <br>
+  <a href="https://github.com/devops-adeel/graphiti-claude-code-mcp/releases/latest/download/The_AI_That_Never_Forgets.mp4">
+    <img src="docs/assets/images/one-mind-thumbnail.png" alt="Watch: The AI That Never Forgets - How Persistent Memory Transforms AI" width="720">
+  </a>
+
+  <p align="center">
+    <a href="docs/video-transcripts/the-ai-that-never-forgets.md">📄 Read Transcript</a> •
+    <a href="#quick-demo">⚡ See It In Action</a> •
+    <a href="docs/explanation/memory-philosophy.md">📖 Technical Deep Dive</a>
+  </p>
+  </details>
+</div>
+
 ## Features
 
 - 🧠 **Shared Knowledge Graph** - Integrates with GTD Coach using same Neo4j instance
@@ -11,6 +41,10 @@ A temporal knowledge graph memory layer for Claude Code that captures coding pat
 - 🐳 **Docker Solutions** - Remembers deployment fixes and Docker patterns
 - 🔗 **Cross-Domain Insights** - Links GTD tasks with coding solutions
 - 📝 **Claude Commands** - Generates memory-aware commands for Claude Code
+
+### 💼 Why This Matters for Your Team
+
+> **For Engineering Leaders:** Watch how persistent AI memory [transforms team productivity (0:00-1:30)](https://github.com/devops-adeel/graphiti-claude-code-mcp/releases/latest/download/The_AI_That_Never_Forgets.mp4#t=0) - No more knowledge silos, no more repeated debugging, no more context loss between sessions.
 
 ## Architecture
 
@@ -46,6 +80,10 @@ A temporal knowledge graph memory layer for Claude Code that captures coding pat
 
 **New to the project?** Start with our [Neo4j Quickstart](docs/tutorials/01-neo4j-quickstart.md) (5 minutes).
 
+### 🚀 See It Work in 2 Minutes
+
+> **For Developers:** Jump straight to the [technical implementation demo (2:30-4:00)](https://github.com/devops-adeel/graphiti-claude-code-mcp/releases/latest/download/The_AI_That_Never_Forgets.mp4#t=150) to see how temporal knowledge graphs solve the context persistence problem.
+
 ### Prerequisites
 
 - Python 3.11+
@@ -58,7 +96,7 @@ A temporal knowledge graph memory layer for Claude Code that captures coding pat
 
 ```bash
 # Clone and setup
-git clone https://github.com/yourusername/graphiti-claude-code-mcp.git
+git clone https://github.com/devops-adeel/graphiti-claude-code-mcp.git
 cd graphiti-claude-code-mcp
 make setup  # Runs complete setup
 
@@ -92,9 +130,12 @@ Technical details:
 
 ### 💡 Understand (Explanations)
 Conceptual deep-dives:
+- 🎬 **[Video: The AI That Never Forgets](https://github.com/devops-adeel/graphiti-claude-code-mcp/releases/latest/download/The_AI_That_Never_Forgets.mp4)** - Visual journey through persistent memory (5:38)
 - [Memory Philosophy](docs/explanation/memory-philosophy.md) - Why memories never delete
 - [Temporal Decay](docs/explanation/temporal-decay.md) - How memory scoring works
 - [System Design](docs/explanation/system-design.md) - Architectural decisions
+
+> **For Researchers:** Study the [complete conceptual framework (0:00-5:38)](https://github.com/devops-adeel/graphiti-claude-code-mcp/releases/latest/download/The_AI_That_Never_Forgets.mp4) with [full transcript](docs/video-transcripts/the-ai-that-never-forgets.md) for citation and analysis.
 
 ## Key Features in Action
 
@@ -237,6 +278,6 @@ MIT
 ## Acknowledgments
 
 - Built on [Graphiti](https://github.com/getzep/graphiti) by Zep
-- Integrates with [GTD Coach](https://github.com/yourusername/gtd-coach)
+- Integrates with [GTD Coach](https://github.com/devops-adeel/gtd-coach)
 - Uses [Neo4j](https://neo4j.com/) for graph storage
 - Implements [MCP](https://github.com/anthropics/mcp) protocol

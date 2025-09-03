@@ -18,7 +18,7 @@ Start by getting the code and building the Docker image:
 
 ```bash
 # Clone the repository
-git clone https://github.com/yourusername/graphiti-claude-code-mcp.git
+git clone https://github.com/devops-adeel/graphiti-claude-code-mcp.git
 cd graphiti-claude-code-mcp
 
 # Build the Docker image

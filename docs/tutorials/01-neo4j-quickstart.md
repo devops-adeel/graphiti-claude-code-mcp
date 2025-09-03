@@ -13,7 +13,7 @@ Get your memory graph running with Neo4j - a powerful graph database that stores
 
 ```bash
 # Clone if you haven't already
-git clone https://github.com/yourusername/graphiti-claude-code-mcp.git
+git clone https://github.com/devops-adeel/graphiti-claude-code-mcp.git
 cd graphiti-claude-code-mcp
 
 # Start Neo4j with optimized settings
