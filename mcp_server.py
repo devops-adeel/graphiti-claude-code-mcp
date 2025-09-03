@@ -67,62 +67,38 @@ async def get_langfuse_client():
             ssl_config = get_ssl_config()
             ssl_info = ssl_config.get_info()
 
-            # If OrbStack cert is found, configure requests to use it
+            # Configure OTLP endpoint to use HTTP to avoid SSL verification issues
+            # For local development with OrbStack, HTTP is acceptable and simpler
+            logger.info("Configuring OTLP endpoint to use HTTP (avoids SSL issues)")
+
+            # Get the base host without protocol
+            langfuse_host_for_otel = os.environ.get("LANGFUSE_HOST", "langfuse.local")
+            # Remove any existing protocol prefix
+            if langfuse_host_for_otel.startswith("https://"):
+                langfuse_host_for_otel = langfuse_host_for_otel[8:]
+            elif langfuse_host_for_otel.startswith("http://"):
+                langfuse_host_for_otel = langfuse_host_for_otel[7:]
+
+            # Use HTTP for OTLP endpoint to avoid SSL verification issues
+            os.environ["OTEL_EXPORTER_OTLP_ENDPOINT"] = (
+                f"http://{langfuse_host_for_otel}/api/public/otel"
+            )
+            logger.info(
+                f"OTLP endpoint set to: http://{langfuse_host_for_otel}/api/public/otel"
+            )
+
+            # If OrbStack cert is found, still use it for main API calls
             if ssl_info.get("is_orbstack") and ssl_info.get("cert_path"):
-                logger.info(f"Using OrbStack certificate: {ssl_info['cert_path']}")
-                # Set environment variable that requests library will use
+                logger.info(
+                    f"Using OrbStack certificate for main API: {ssl_info['cert_path']}"
+                )
+                # Set environment variable that requests library will use for main API
                 os.environ["REQUESTS_CA_BUNDLE"] = ssl_info["cert_path"]
                 os.environ["SSL_CERT_FILE"] = ssl_info["cert_path"]
-                # Also set for OTEL
-                os.environ["OTEL_EXPORTER_OTLP_CERTIFICATE"] = ssl_info["cert_path"]
-                # Use HTTPS with certificate
-                os.environ["OTEL_EXPORTER_OTLP_ENDPOINT"] = (
-                    "https://langfuse.local/api/public/otel"
-                )
             else:
-                # Fallback to disabling SSL verification
-                logger.warning(
-                    "No OrbStack certificate found, disabling SSL verification"
+                logger.info(
+                    "No OrbStack certificate found, main API will use default SSL handling"
                 )
-                # These environment variables disable SSL verification for requests/urllib3
-                os.environ["CURL_CA_BUNDLE"] = ""  # Disable cert bundle
-                os.environ["REQUESTS_CA_BUNDLE"] = ""  # Disable for requests library
-                os.environ["PYTHONWARNINGS"] = "ignore:Unverified HTTPS request"
-                # Keep HTTPS but without verification
-                # Use same host as Langfuse SDK
-                langfuse_host_for_otel = os.environ.get(
-                    "LANGFUSE_HOST", "langfuse.local"
-                )
-                if not langfuse_host_for_otel.startswith(("http://", "https://")):
-                    langfuse_host_for_otel = f"https://{langfuse_host_for_otel}"
-                os.environ["OTEL_EXPORTER_OTLP_ENDPOINT"] = (
-                    f"{langfuse_host_for_otel}/api/public/otel"
-                )
-                os.environ["OTEL_EXPORTER_OTLP_INSECURE"] = "true"
-                # Disable SSL warnings
-                import urllib3
-
-                urllib3.disable_warnings(urllib3.exceptions.InsecureRequestWarning)
-                # Monkey-patch SSL verification for requests
-                import ssl
-                import requests
-                from requests.packages.urllib3.exceptions import InsecureRequestWarning
-
-                requests.packages.urllib3.disable_warnings(InsecureRequestWarning)
-                # Create a custom session for requests that doesn't verify SSL
-                try:
-                    import requests
-
-                    old_request = requests.Session.request
-
-                    def no_ssl_verification(self, *args, **kwargs):
-                        kwargs["verify"] = False
-                        return old_request(self, *args, **kwargs)
-
-                    requests.Session.request = no_ssl_verification
-                    logger.info("Patched requests to disable SSL verification")
-                except Exception as e:
-                    logger.warning(f"Could not patch requests for SSL: {e}")
 
             # Configure OTEL authentication headers for Langfuse
             # The OTEL exporter needs Basic Auth with public_key as username and secret_key as password
