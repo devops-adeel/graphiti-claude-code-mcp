@@ -7,13 +7,32 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 
+### 🚀 Features
+
+- Add 'The AI That Never Forgets' conceptual video documentation
+
 ### 🐛 Bug Fixes
 
+- Sync pyproject.toml version with CHANGELOG
+- *(otlp)* Use HTTP endpoint to bypass SSL verification issues
 - *(auth)* Implement lazy Langfuse initialization with proper secret injection
 
 ### 🚜 Refactor
 
+- Migrate to Langfuse SDK v3 with OrbStack SSL support
 - *(config)* Standardize group_id to 'shared_knowledge' across system
+
+### 📚 Documentation
+
+- Document Langfuse storage failure investigation and solution
+
+### 🧪 Testing
+
+- Migrate loop prevention tests to Langfuse SDK v3
+
+### ⚙️ Miscellaneous Tasks
+
+- Add root-level test files to .gitignore
 ## [3.2.0](https://github.com/adeel/graphiti-claude-code-mcp/compare/v3.1.1..v3.2.0) - 2025-09-02
 
 
