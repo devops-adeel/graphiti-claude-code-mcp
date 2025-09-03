@@ -26,10 +26,11 @@ logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
 # Import Langfuse - MANDATORY for observability
-from langfuse import Langfuse
+from langfuse import Langfuse, get_client
 
 # Lazy initialization for Langfuse client
 _langfuse_client = None
+_langfuse_initialized = False
 LANGFUSE_ENABLED = False
 
 
@@ -39,7 +40,7 @@ async def get_langfuse_client():
     This function ensures Langfuse is only initialized after secrets are loaded.
     Uses a singleton pattern to avoid multiple initializations.
     """
-    global _langfuse_client, LANGFUSE_ENABLED
+    global _langfuse_client, _langfuse_initialized, LANGFUSE_ENABLED
 
     if _langfuse_client is not None:
         return _langfuse_client
@@ -58,13 +59,98 @@ async def get_langfuse_client():
         raise ValueError(error_msg)
 
     try:
-        _langfuse_client = Langfuse(
-            public_key=LANGFUSE_PUBLIC_KEY,
-            secret_key=LANGFUSE_SECRET_KEY,
-            host=os.getenv("LANGFUSE_HOST", "https://cloud.langfuse.com"),
-        )
+        # Initialize the Langfuse singleton with credentials (v3 pattern)
+        if not _langfuse_initialized:
+            # Use ssl_config to properly handle OrbStack certificates
+            from ssl_config import get_ssl_config
+
+            ssl_config = get_ssl_config()
+            ssl_info = ssl_config.get_info()
+
+            # If OrbStack cert is found, configure requests to use it
+            if ssl_info.get("is_orbstack") and ssl_info.get("cert_path"):
+                logger.info(f"Using OrbStack certificate: {ssl_info['cert_path']}")
+                # Set environment variable that requests library will use
+                os.environ["REQUESTS_CA_BUNDLE"] = ssl_info["cert_path"]
+                os.environ["SSL_CERT_FILE"] = ssl_info["cert_path"]
+                # Also set for OTEL
+                os.environ["OTEL_EXPORTER_OTLP_CERTIFICATE"] = ssl_info["cert_path"]
+                # Use HTTPS with certificate
+                os.environ["OTEL_EXPORTER_OTLP_ENDPOINT"] = (
+                    "https://langfuse.local/api/public/otel"
+                )
+            else:
+                # Fallback to disabling SSL verification
+                logger.warning(
+                    "No OrbStack certificate found, disabling SSL verification"
+                )
+                # These environment variables disable SSL verification for requests/urllib3
+                os.environ["CURL_CA_BUNDLE"] = ""  # Disable cert bundle
+                os.environ["REQUESTS_CA_BUNDLE"] = ""  # Disable for requests library
+                os.environ["PYTHONWARNINGS"] = "ignore:Unverified HTTPS request"
+                # Keep HTTPS but without verification
+                # Use same host as Langfuse SDK
+                langfuse_host_for_otel = os.environ.get(
+                    "LANGFUSE_HOST", "langfuse.local"
+                )
+                if not langfuse_host_for_otel.startswith(("http://", "https://")):
+                    langfuse_host_for_otel = f"https://{langfuse_host_for_otel}"
+                os.environ["OTEL_EXPORTER_OTLP_ENDPOINT"] = (
+                    f"{langfuse_host_for_otel}/api/public/otel"
+                )
+                os.environ["OTEL_EXPORTER_OTLP_INSECURE"] = "true"
+                # Disable SSL warnings
+                import urllib3
+
+                urllib3.disable_warnings(urllib3.exceptions.InsecureRequestWarning)
+                # Monkey-patch SSL verification for requests
+                import ssl
+                import requests
+                from requests.packages.urllib3.exceptions import InsecureRequestWarning
+
+                requests.packages.urllib3.disable_warnings(InsecureRequestWarning)
+                # Create a custom session for requests that doesn't verify SSL
+                try:
+                    import requests
+
+                    old_request = requests.Session.request
+
+                    def no_ssl_verification(self, *args, **kwargs):
+                        kwargs["verify"] = False
+                        return old_request(self, *args, **kwargs)
+
+                    requests.Session.request = no_ssl_verification
+                    logger.info("Patched requests to disable SSL verification")
+                except Exception as e:
+                    logger.warning(f"Could not patch requests for SSL: {e}")
+
+            # Configure OTEL authentication headers for Langfuse
+            # The OTEL exporter needs Basic Auth with public_key as username and secret_key as password
+            import base64
+
+            auth_string = f"{LANGFUSE_PUBLIC_KEY}:{LANGFUSE_SECRET_KEY}"
+            auth_bytes = auth_string.encode("ascii")
+            auth_b64 = base64.b64encode(auth_bytes).decode("ascii")
+            os.environ["OTEL_EXPORTER_OTLP_HEADERS"] = f"Authorization=Basic {auth_b64}"
+            logger.info("Configured OTEL authentication headers")
+
+            # Use environment variable for host if available, otherwise default
+            langfuse_host = os.environ.get("LANGFUSE_HOST", "langfuse.local")
+            # Ensure host has https:// prefix if not present
+            if not langfuse_host.startswith(("http://", "https://")):
+                langfuse_host = f"https://{langfuse_host}"
+
+            Langfuse(
+                public_key=LANGFUSE_PUBLIC_KEY,
+                secret_key=LANGFUSE_SECRET_KEY,
+                host=langfuse_host,  # Use dynamic host from env
+            )
+            _langfuse_initialized = True
+
+        # Get the singleton client instance (v3 pattern)
+        _langfuse_client = get_client()
         LANGFUSE_ENABLED = True
-        logger.info("Langfuse tracing ENABLED - all operations will be traced")
+        logger.info("✅ Langfuse client initialized (v3 SDK with langfuse.local)")
         return _langfuse_client
     except Exception as e:
         error_msg = f"Failed to initialize Langfuse (REQUIRED): {e}"
@@ -670,10 +756,6 @@ async def list_tools() -> List[Tool]:
 @server.call_tool()
 async def call_tool(name: str, arguments: Dict[str, Any]) -> Any:
     """Execute a memory tool"""
-    # Initialize trace context
-    trace = None
-    span = None
-
     # Tag this operation as MCP-internal if Langfuse is available
     try:
         langfuse_client = await get_langfuse_client()
@@ -681,368 +763,523 @@ async def call_tool(name: str, arguments: Dict[str, Any]) -> Any:
         langfuse_client = None
 
     if langfuse_client:
-        # Create a trace with MCP tags to prevent analysis loops
-        trace = langfuse_client.trace(
-            name=f"mcp_tool_{name}",
-            tags=[
-                os.getenv("MCP_TRACE_TAG", "mcp-internal"),
-                os.getenv("MCP_ANALYZER_TAG", "mcp-analyzer"),
-                f"tool:{name}",
-            ],
-            metadata={
-                "source": os.getenv("MCP_SOURCE_IDENTIFIER", "mcp-server"),
-                "component": "tool-handler",
-                "tool": name,
-                "version": os.getenv("MCP_COMPONENT_VERSION", "1.0.0"),
-                "arguments": arguments,  # Include arguments for debugging
-            },
-        )
-
-        # Start a span for the specific tool execution
-        span = trace.span(name=f"execute_{name}", metadata={"tool": name})
-
-    try:
-        memory = await get_shared_memory()
-        capture = await get_pattern_capture()
-
-        result = None
-
-        # Create sub-spans for Graphiti operations if tracing is enabled
-        if name == "capture_solution":
-            # Create sub-span for Graphiti operation
-            if span:
-                graphiti_span = trace.span(
-                    name="graphiti_capture_solution",
-                    metadata={
-                        "error": (
-                            arguments["error"][:100] if "error" in arguments else None
-                        )
-                    },
-                )
-
-            # Capture deployment/coding solution
-            memory_id = await capture.capture_deployment_solution(
-                error=arguments["error"],
-                solution=arguments["solution"],
-                context=arguments.get("context", {}),
-            )
-
-            # Link to GTD if provided
-            if arguments.get("gtd_task_id"):
-                await memory.link_to_gtd_task(memory_id, arguments["gtd_task_id"])
-
-            if span:
-                graphiti_span.end()
-
-            result = {
-                "status": "success",
-                "memory_id": memory_id,
-                "message": f"Captured solution: {memory_id}",
-            }
-
-        elif name == "capture_tdd_pattern":
-            # Create sub-span for Graphiti operation
-            if span:
-                graphiti_span = trace.span(
-                    name="graphiti_capture_tdd",
-                    metadata={"feature": arguments["feature_name"]},
-                )
-
-            # Capture TDD pattern
-            memory_id = await capture.capture_tdd_cycle(
-                test_code=arguments["test_code"],
-                implementation=arguments.get("implementation"),
-                refactored=arguments.get("refactored"),
-                feature_name=arguments["feature_name"],
-            )
-
-            if span:
-                graphiti_span.end()
-
-            result = {
-                "status": "success",
-                "memory_id": memory_id,
-                "message": f"Captured TDD pattern for {arguments['feature_name']}",
-            }
-
-        elif name == "search_memory":
-            # Create sub-span for Graphiti operation
-            if span:
-                graphiti_span = trace.span(
-                    name="graphiti_search", metadata={"query": arguments["query"]}
-                )
-
-            # Search shared knowledge
-            results = await memory.search_with_temporal_weight(
-                query=arguments["query"],
-                include_historical=arguments.get("include_historical", False),
-                filter_source=arguments.get("filter_source"),
-            )
-
-            if span:
-                graphiti_span.update(metadata={"results_count": len(results)})
-                graphiti_span.end()
-
-            result = {
-                "status": "success",
-                "count": len(results),
-                "results": [_format_memory(r) for r in results],
-            }
-
-        elif name == "find_cross_insights":
-            # Create sub-span for Graphiti operation
-            if span:
-                graphiti_span = trace.span(
-                    name="graphiti_cross_insights",
-                    metadata={"topic": arguments["topic"]},
-                )
-
-            # Find cross-domain insights
-            insights = await memory.find_cross_domain_insights(arguments["topic"])
-
-            if span:
-                graphiti_span.update(metadata={"insights_count": len(insights)})
-                graphiti_span.end()
-
-            result = {
-                "status": "success",
-                "insights": insights,
-                "message": f"Found {len(insights)} cross-domain insights",
-            }
-
-        elif name == "get_gtd_context":
-            # Create sub-span for Graphiti operation
-            if span:
-                graphiti_span = trace.span(
-                    name="graphiti_gtd_context", metadata={"operation": "multi_search"}
-                )
-
-            # Get GTD context with multiple searches
-            tasks = await memory.search_with_temporal_weight(
-                "computer task active", filter_source="gtd_coach"
-            )
-            projects = await memory.search_with_temporal_weight(
-                "project active", filter_source="gtd_coach"
-            )
-            reviews = await memory.search_with_temporal_weight(
-                "review insight", filter_source="gtd_coach"
-            )
-
-            if span:
-                graphiti_span.update(
-                    metadata={
-                        "tasks_count": len(tasks),
-                        "projects_count": len(projects),
-                        "reviews_count": len(reviews),
-                    }
-                )
-                graphiti_span.end()
-
-            result = {
-                "status": "success",
-                "context": {
-                    "active_tasks": [_format_memory(t) for t in tasks[:5]],
-                    "active_projects": [_format_memory(p) for p in projects[:3]],
-                    "recent_insights": [_format_memory(r) for r in reviews[:3]],
-                },
-            }
-
-        elif name == "supersede_memory":
-            # Create sub-span for Graphiti operation
-            if span:
-                graphiti_span = trace.span(
-                    name="graphiti_supersede",
-                    metadata={
-                        "old_id": arguments["old_id"],
-                        "reason": arguments["reason"],
-                    },
-                )
-
-            # Supersede old memory
-            new_id = await memory.supersede_memory(
-                old_id=arguments["old_id"],
-                new_content=arguments["new_content"],
-                reason=arguments["reason"],
-            )
-
-            if span:
-                graphiti_span.end()
-
-            result = {
-                "status": "success",
-                "new_id": new_id,
-                "message": f"Superseded {arguments['old_id']} with {new_id}",
-            }
-
-        elif name == "capture_command":
-            # Create sub-span for Graphiti operation
-            if span:
-                graphiti_span = trace.span(
-                    name="graphiti_capture_command",
-                    metadata={
-                        "command": arguments["command"],
-                        "context": arguments["context"],
-                    },
-                )
-
-            # Capture command pattern
-            memory_id = await capture.capture_command_pattern(
-                command=arguments["command"],
-                context=arguments["context"],
-                success=arguments["success"],
-                output=arguments.get("output"),
-            )
-
-            if span:
-                graphiti_span.end()
-
-            result = {
-                "status": "success",
-                "memory_id": memory_id,
-                "message": f"Captured command pattern: {memory_id}",
-            }
-
-        elif name == "get_memory_evolution":
-            # Create sub-span for Graphiti operation
-            if span:
-                graphiti_span = trace.span(
-                    name="graphiti_evolution", metadata={"topic": arguments["topic"]}
-                )
-
-            # Get evolution history
-            evolution = await memory.get_memory_evolution(arguments["topic"])
-
-            if span:
-                graphiti_span.update(metadata={"chains_count": len(evolution)})
-                graphiti_span.end()
-
-            result = {
-                "status": "success",
-                "evolution": evolution,
-                "chains": len(evolution),
-            }
-
-        elif name == "generate_commands":
-            # Create sub-span for Graphiti operation
-            if span:
-                graphiti_span = trace.span(
-                    name="graphiti_generate_commands",
-                    metadata={"operation": "command_generation"},
-                )
-
-            # Generate Claude commands
-            generator = await get_command_generator()
-            await generator.generate_all_commands()
-
-            if span:
-                graphiti_span.end()
-
-            result = {
-                "status": "success",
-                "message": f"Generated commands in ~/.claude/commands/",
-                "commands": [
-                    "/tdd-feature",
-                    "/check-deployment",
-                    "/fix-docker",
-                    "/project-structure",
-                    "/search-memory",
+        # Create a trace with MCP tags to prevent analysis loops using v3 patterns
+        with langfuse_client.start_as_current_span(
+            name=f"mcp_tool_{name}"
+        ) as root_span:
+            # Set trace-level tags and metadata
+            root_span.update_trace(
+                tags=[
+                    os.getenv("MCP_TRACE_TAG", "mcp-internal"),
+                    os.getenv("MCP_ANALYZER_TAG", "mcp-analyzer"),
+                    f"tool:{name}",
                 ],
-            }
-
-        # Langfuse Trace Analysis Tools
-        elif name == "analyze_langfuse_traces":
-            analyzer = await get_langfuse_analyzer()
-            result = await analyzer.analyze_recent_traces(
-                hours_back=arguments.get("hours_back", 1),
-                session_id=arguments.get("session_id"),
-                project=arguments.get("project"),
+                metadata={
+                    "source": os.getenv("MCP_SOURCE_IDENTIFIER", "mcp-server"),
+                    "component": "tool-handler",
+                    "tool": name,
+                    "version": os.getenv("MCP_COMPONENT_VERSION", "1.0.0"),
+                    "arguments": arguments,
+                },
             )
-
-        elif name == "analyze_phase_transitions":
-            analyzer = await get_langfuse_analyzer()
-            result = await analyzer.analyze_phase_transitions(
-                trace_id=arguments.get("trace_id"),
-                session_id=arguments.get("session_id"),
-            )
-
-        elif name == "validate_state_continuity":
-            analyzer = await get_langfuse_analyzer()
-            result = await analyzer.validate_state_continuity(
-                trace_id=arguments.get("trace_id"),
-                session_id=arguments.get("session_id"),
-            )
-
-        elif name == "analyze_test_failure":
-            analyzer = await get_langfuse_analyzer()
-            result = await analyzer.analyze_test_failure(
-                session_id=arguments["session_id"],
-                return_patterns=arguments.get("return_patterns", True),
-            )
-
-        elif name == "detect_interrupt_patterns":
-            analyzer = await get_langfuse_analyzer()
-            result = await analyzer.detect_interrupt_patterns(
-                hours_back=arguments.get("hours_back", 1),
-                session_id=arguments.get("session_id"),
-            )
-
-        elif name == "predict_trace_issues":
-            analyzer = await get_langfuse_analyzer()
-            result = await analyzer.predict_trace_issues(
-                trace_id=arguments["trace_id"],
-                threshold=arguments.get("threshold", 0.7),
-            )
-
-        elif name == "debug_langfuse_session":
-            analyzer = await get_langfuse_analyzer()
-            # Call the original debug_session function if available
             try:
-                from langfuse_integration.analyze_langfuse_traces import debug_session
+                memory = await get_shared_memory()
+                capture = await get_pattern_capture()
 
-                # Run in executor since it's sync
-                loop = asyncio.get_event_loop()
-                result = await loop.run_in_executor(
-                    None,
-                    debug_session,
-                    arguments["session_id"],
-                    arguments.get("focus", "all"),
-                )
-            except ImportError:
-                result = {
-                    "status": "error",
-                    "message": "debug_session not available - analyze_langfuse_traces module not found",
-                }
+                result = None
 
-        elif name == "monitor_active_traces":
-            # Simple monitoring status for now
-            analyzer = await get_langfuse_analyzer()
-            result = {
-                "status": "success",
-                "message": "Real-time monitoring would check traces every {} seconds".format(
-                    arguments.get("interval_seconds", 30)
-                ),
-                "project": arguments.get("project", "all"),
-                "note": "Full real-time monitoring requires a background task",
-            }
+                # Tool-specific logic with Graphiti spans
+                if name == "capture_solution":
+                    # Create sub-span for Graphiti operation
+                    with langfuse_client.start_as_current_span(
+                        name="graphiti_capture_solution",
+                        metadata={
+                            "error": (
+                                arguments.get("error", "")[:100]
+                                if "error" in arguments
+                                else None
+                            )
+                        },
+                    ):
+                        # Capture deployment/coding solution
+                        memory_id = await capture.capture_deployment_solution(
+                            error=arguments["error"],
+                            solution=arguments["solution"],
+                            context=arguments.get("context", {}),
+                        )
 
-        else:
-            raise ValueError(f"Unknown tool: {name}")
+                        # Link to GTD if provided
+                        if arguments.get("gtd_task_id"):
+                            await memory.link_to_gtd_task(
+                                memory_id, arguments["gtd_task_id"]
+                            )
 
-        # Return the result
+                    result = {
+                        "status": "success",
+                        "memory_id": memory_id,
+                        "message": f"Captured solution: {memory_id}",
+                    }
+
+                elif name == "capture_tdd_pattern":
+                    # Create sub-span for Graphiti operation
+                    with langfuse_client.start_as_current_span(
+                        name="graphiti_capture_tdd",
+                        metadata={"feature": arguments["feature_name"]},
+                    ):
+                        # Capture TDD pattern
+                        memory_id = await capture.capture_tdd_cycle(
+                            test_code=arguments["test_code"],
+                            implementation=arguments.get("implementation"),
+                            refactored=arguments.get("refactored"),
+                            feature_name=arguments["feature_name"],
+                        )
+
+                    result = {
+                        "status": "success",
+                        "memory_id": memory_id,
+                        "message": f"Captured TDD pattern for {arguments['feature_name']}",
+                    }
+
+                elif name == "search_memory":
+                    # Create sub-span for Graphiti operation
+                    with langfuse_client.start_as_current_span(
+                        name="graphiti_search", metadata={"query": arguments["query"]}
+                    ):
+                        # Search shared knowledge
+                        results = await memory.search_with_temporal_weight(
+                            query=arguments["query"],
+                            include_historical=arguments.get(
+                                "include_historical", False
+                            ),
+                            filter_source=arguments.get("filter_source"),
+                        )
+
+                    result = {
+                        "status": "success",
+                        "count": len(results),
+                        "results": [_format_memory(r) for r in results],
+                    }
+
+                elif name == "find_cross_insights":
+                    # Create sub-span for Graphiti operation
+                    with langfuse_client.start_as_current_span(
+                        name="graphiti_cross_insights",
+                        metadata={"topic": arguments["topic"]},
+                    ):
+                        # Find cross-domain insights
+                        insights = await memory.find_cross_domain_insights(
+                            arguments["topic"]
+                        )
+
+                    result = {
+                        "status": "success",
+                        "insights": insights,
+                        "message": f"Found {len(insights)} cross-domain insights",
+                    }
+
+                elif name == "get_gtd_context":
+                    # Create sub-span for Graphiti operation
+                    with langfuse_client.start_as_current_span(
+                        name="graphiti_gtd_context",
+                        metadata={"operation": "multi_search"},
+                    ):
+                        # Multi-search for GTD context
+                        tasks = await memory.search_with_temporal_weight(
+                            "@computer task", filter_source="gtd_coach"
+                        )
+                        projects = await memory.search_with_temporal_weight(
+                            "project active", filter_source="gtd_coach"
+                        )
+                        reviews = await memory.search_with_temporal_weight(
+                            "review insight", filter_source="gtd_coach"
+                        )
+
+                    result = {
+                        "status": "success",
+                        "context": {
+                            "active_tasks": [_format_memory(t) for t in tasks[:5]],
+                            "active_projects": [
+                                _format_memory(p) for p in projects[:3]
+                            ],
+                            "recent_insights": [_format_memory(r) for r in reviews[:3]],
+                        },
+                    }
+
+                elif name == "supersede_memory":
+                    # Create sub-span for Graphiti operation
+                    with langfuse_client.start_as_current_span(
+                        name="graphiti_supersede",
+                        metadata={
+                            "old_id": arguments["old_id"],
+                            "reason": arguments["reason"],
+                        },
+                    ):
+                        # Supersede old memory
+                        new_id = await memory.supersede_memory(
+                            old_id=arguments["old_id"],
+                            new_content=arguments["new_content"],
+                            reason=arguments["reason"],
+                        )
+
+                    result = {
+                        "status": "success",
+                        "new_id": new_id,
+                        "message": f"Superseded {arguments['old_id']} with {new_id}",
+                    }
+
+                elif name == "capture_command":
+                    # Create sub-span for Graphiti operation
+                    with langfuse_client.start_as_current_span(
+                        name="graphiti_capture_command",
+                        metadata={
+                            "command": arguments["command"],
+                            "context": arguments["context"],
+                        },
+                    ):
+                        # Capture command pattern
+                        memory_id = await capture.capture_command_pattern(
+                            command=arguments["command"],
+                            context=arguments["context"],
+                            success=arguments["success"],
+                            output=arguments.get("output"),
+                        )
+
+                    result = {
+                        "status": "success",
+                        "memory_id": memory_id,
+                        "message": f"Captured command pattern: {memory_id}",
+                    }
+
+                elif name == "get_memory_evolution":
+                    # Create sub-span for Graphiti operation
+                    with langfuse_client.start_as_current_span(
+                        name="graphiti_evolution",
+                        metadata={"topic": arguments["topic"]},
+                    ):
+                        # Get evolution history
+                        evolution = await memory.get_memory_evolution(
+                            arguments["topic"]
+                        )
+
+                    result = {
+                        "status": "success",
+                        "evolution": evolution,
+                        "chains": len(evolution),
+                    }
+
+                elif name == "generate_commands":
+                    # Create sub-span for Graphiti operation
+                    with langfuse_client.start_as_current_span(
+                        name="graphiti_generate_commands",
+                        metadata={"operation": "command_generation"},
+                    ):
+                        # Generate Claude commands
+                        generator = await get_command_generator()
+                        await generator.generate_all_commands()
+
+                    result = {
+                        "status": "success",
+                        "message": f"Generated commands in ~/.claude/commands/",
+                        "commands": [
+                            "/tdd-feature",
+                            "/check-deployment",
+                            "/fix-docker",
+                            "/project-structure",
+                            "/search-memory",
+                        ],
+                    }
+
+                # Langfuse Trace Analysis Tools
+                elif name == "analyze_langfuse_traces":
+                    with langfuse_client.start_as_current_span(
+                        name="langfuse_analyze_traces",
+                        metadata={"hours_back": arguments.get("hours_back", 1)},
+                    ):
+                        analyzer = await get_langfuse_analyzer()
+                        result = await analyzer.analyze_recent_traces(
+                            hours_back=arguments.get("hours_back", 1),
+                            session_id=arguments.get("session_id"),
+                            project=arguments.get("project"),
+                        )
+
+                elif name == "analyze_phase_transitions":
+                    with langfuse_client.start_as_current_span(
+                        name="langfuse_phase_transitions",
+                        metadata={"trace_id": arguments.get("trace_id")},
+                    ):
+                        analyzer = await get_langfuse_analyzer()
+                        result = await analyzer.analyze_phase_transitions(
+                            trace_id=arguments.get("trace_id"),
+                            session_id=arguments.get("session_id"),
+                        )
+
+                elif name == "validate_state_continuity":
+                    with langfuse_client.start_as_current_span(
+                        name="langfuse_state_continuity",
+                        metadata={"trace_id": arguments.get("trace_id")},
+                    ):
+                        analyzer = await get_langfuse_analyzer()
+                        result = await analyzer.validate_state_continuity(
+                            trace_id=arguments.get("trace_id"),
+                            session_id=arguments.get("session_id"),
+                        )
+
+                elif name == "analyze_test_failure":
+                    with langfuse_client.start_as_current_span(
+                        name="langfuse_test_failure",
+                        metadata={"session_id": arguments["session_id"]},
+                    ):
+                        analyzer = await get_langfuse_analyzer()
+                        result = await analyzer.analyze_test_failure(
+                            session_id=arguments["session_id"],
+                            return_patterns=arguments.get("return_patterns", True),
+                        )
+
+                elif name == "detect_interrupt_patterns":
+                    with langfuse_client.start_as_current_span(
+                        name="langfuse_interrupt_patterns",
+                        metadata={"hours_back": arguments.get("hours_back", 1)},
+                    ):
+                        analyzer = await get_langfuse_analyzer()
+                        result = await analyzer.detect_interrupt_patterns(
+                            hours_back=arguments.get("hours_back", 1),
+                            session_id=arguments.get("session_id"),
+                        )
+
+                elif name == "predict_trace_issues":
+                    with langfuse_client.start_as_current_span(
+                        name="langfuse_predict_issues",
+                        metadata={"trace_id": arguments["trace_id"]},
+                    ):
+                        analyzer = await get_langfuse_analyzer()
+                        result = await analyzer.predict_trace_issues(
+                            trace_id=arguments["trace_id"],
+                            threshold=arguments.get("threshold", 0.7),
+                        )
+
+                elif name == "debug_langfuse_session":
+                    with langfuse_client.start_as_current_span(
+                        name="langfuse_debug_session",
+                        metadata={"session_id": arguments["session_id"]},
+                    ):
+                        analyzer = await get_langfuse_analyzer()
+                        try:
+                            from langfuse_integration.analyze_langfuse_traces import (
+                                debug_session,
+                            )
+
+                            loop = asyncio.get_event_loop()
+                            result = await loop.run_in_executor(
+                                None,
+                                debug_session,
+                                arguments["session_id"],
+                                arguments.get("focus", "all"),
+                            )
+                        except ImportError:
+                            result = {
+                                "status": "error",
+                                "message": "debug_session not available - analyze_langfuse_traces module not found",
+                            }
+
+                elif name == "monitor_active_traces":
+                    with langfuse_client.start_as_current_span(
+                        name="langfuse_monitor_traces",
+                        metadata={"interval": arguments.get("interval_seconds", 30)},
+                    ):
+                        analyzer = await get_langfuse_analyzer()
+                        result = {
+                            "status": "success",
+                            "message": "Real-time monitoring would check traces every {} seconds".format(
+                                arguments.get("interval_seconds", 30)
+                            ),
+                            "project": arguments.get("project", "all"),
+                            "note": "Full real-time monitoring requires a background task",
+                        }
+
+                else:
+                    raise ValueError(f"Unknown tool: {name}")
+
+                # Update trace with result
+                root_span.update_trace(output={"status": "success", "result": result})
+                return result
+
+            except Exception as e:
+                root_span.update_trace(output={"status": "error", "error": str(e)})
+                logger.error(f"Tool {name} failed: {e}")
+                raise
+    else:
+        # Fallback when Langfuse is not available
+        return await _execute_tool_without_tracing(name, arguments)
+
+
+async def _execute_tool_without_tracing(name: str, arguments: Dict[str, Any]) -> Any:
+    """Execute tool without Langfuse tracing (fallback mode)"""
+    memory = await get_shared_memory()
+    capture = await get_pattern_capture()
+
+    if name == "capture_solution":
+        memory_id = await capture.capture_deployment_solution(
+            error=arguments["error"],
+            solution=arguments["solution"],
+            context=arguments.get("context", {}),
+        )
+        if arguments.get("gtd_task_id"):
+            await memory.link_to_gtd_task(memory_id, arguments["gtd_task_id"])
+        return {
+            "status": "success",
+            "memory_id": memory_id,
+            "message": f"Captured solution: {memory_id}",
+        }
+
+    elif name == "capture_tdd_pattern":
+        memory_id = await capture.capture_tdd_cycle(
+            test_code=arguments["test_code"],
+            implementation=arguments.get("implementation"),
+            refactored=arguments.get("refactored"),
+            feature_name=arguments["feature_name"],
+        )
+        return {
+            "status": "success",
+            "memory_id": memory_id,
+            "message": f"Captured TDD pattern for {arguments['feature_name']}",
+        }
+
+    elif name == "search_memory":
+        results = await memory.search_with_temporal_weight(
+            query=arguments["query"],
+            filter_source=arguments.get("filter_source"),
+            include_historical=arguments.get("include_historical", False),
+        )
+        return {"memories": [_format_memory(m) for m in results], "count": len(results)}
+
+    elif name == "find_cross_insights":
+        insights = await memory.find_cross_domain_insights(arguments["topic"])
+        return {
+            "insights": [_format_memory(i) for i in insights],
+            "count": len(insights),
+        }
+
+    elif name == "get_gtd_context":
+        now_results = await memory.search_with_temporal_weight(
+            "@computer tasks next actions", filter_source="gtd_coach"
+        )
+        project_results = await memory.search_with_temporal_weight(
+            "project planning", filter_source="gtd_coach"
+        )
+        recent_activity = await memory.search_with_temporal_weight(
+            "today done completed", filter_source="gtd_coach"
+        )
+        return {
+            "now_actions": [_format_memory(m) for m in now_results],
+            "active_projects": [_format_memory(m) for m in project_results],
+            "recent_activity": [_format_memory(m) for m in recent_activity],
+        }
+
+    elif name == "supersede_memory":
+        new_id = await memory.supersede_memory(
+            old_id=arguments["old_id"],
+            new_content=arguments["new_content"],
+            reason=arguments["reason"],
+        )
+        return {
+            "status": "success",
+            "new_memory_id": new_id,
+            "old_memory_id": arguments["old_id"],
+        }
+
+    elif name == "capture_command":
+        result = await capture.capture_command_pattern(
+            command=arguments["command"],
+            context=arguments["context"],
+            success=arguments["success"],
+            output=arguments.get("output"),
+        )
         return result
 
-    except Exception as e:
-        # Log error to trace if enabled
-        if span:
-            span.update(level="ERROR", status_message=str(e))
-        raise
-    finally:
-        # Always close the span if it was created
-        if span:
-            span.end()
-        # Update the trace with final status
-        if trace:
-            trace.update(output={"status": "completed", "tool": name})
+    elif name == "get_memory_evolution":
+        evolution = await memory.get_memory_evolution(arguments["topic"])
+        return {"evolution": evolution, "count": len(evolution)}
+
+    elif name == "generate_commands":
+        generator = await get_command_generator()
+        commands = await generator.generate_all_commands()
+        return {"commands": commands, "count": len(commands)}
+
+    # Langfuse Analysis Tools
+    elif name == "analyze_langfuse_traces":
+        analyzer = await get_langfuse_analyzer()
+        return await analyzer.analyze_recent_traces(
+            hours_back=arguments.get("hours_back", 1),
+            session_id=arguments.get("session_id"),
+            project=arguments.get("project"),
+        )
+
+    elif name == "analyze_phase_transitions":
+        analyzer = await get_langfuse_analyzer()
+        return await analyzer.analyze_phase_transitions(
+            trace_id=arguments.get("trace_id"),
+            session_id=arguments.get("session_id"),
+        )
+
+    elif name == "validate_state_continuity":
+        analyzer = await get_langfuse_analyzer()
+        return await analyzer.validate_state_continuity(
+            trace_id=arguments.get("trace_id"),
+            session_id=arguments.get("session_id"),
+        )
+
+    elif name == "analyze_test_failure":
+        analyzer = await get_langfuse_analyzer()
+        return await analyzer.analyze_test_failure(
+            session_id=arguments["session_id"],
+            return_patterns=arguments.get("return_patterns", True),
+        )
+
+    elif name == "detect_interrupt_patterns":
+        analyzer = await get_langfuse_analyzer()
+        return await analyzer.detect_interrupt_patterns(
+            hours_back=arguments.get("hours_back", 1),
+            session_id=arguments.get("session_id"),
+        )
+
+    elif name == "predict_trace_issues":
+        analyzer = await get_langfuse_analyzer()
+        return await analyzer.predict_trace_issues(
+            trace_id=arguments["trace_id"],
+            threshold=arguments.get("threshold", 0.7),
+        )
+
+    elif name == "debug_langfuse_session":
+        analyzer = await get_langfuse_analyzer()
+        try:
+            from langfuse_integration.analyze_langfuse_traces import debug_session
+
+            loop = asyncio.get_event_loop()
+            return await loop.run_in_executor(
+                None,
+                debug_session,
+                arguments["session_id"],
+                arguments.get("focus", "all"),
+            )
+        except ImportError:
+            return {
+                "status": "error",
+                "message": "debug_session not available - analyze_langfuse_traces module not found",
+            }
+
+    elif name == "monitor_active_traces":
+        analyzer = await get_langfuse_analyzer()
+        return {
+            "status": "success",
+            "message": "Real-time monitoring would check traces every {} seconds".format(
+                arguments.get("interval_seconds", 30)
+            ),
+            "project": arguments.get("project", "all"),
+            "note": "Full real-time monitoring requires a background task",
+        }
+
+    else:
+        raise ValueError(f"Unknown tool: {name}")
 
 
 def _format_memory(memory: Any) -> Dict[str, Any]:
