@@ -157,6 +157,8 @@ log/
 
 # Temporary test files
 temp.py
+# Root-level test files (use tests/ directory instead)
+/test_*.py
 
 # Mac specific
 *.DS_Store
