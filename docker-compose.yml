@@ -22,8 +22,14 @@ services:
       # Non-secret configuration values
       - OPENAI_MODEL=${OPENAI_MODEL:-gpt-4o-mini}
       - OPENAI_EMBEDDING_MODEL=${OPENAI_EMBEDDING_MODEL:-text-embedding-3-small}
-      # OpenAI API Key (injected by op run)
-      - OPENAI_API_KEY=${OPENAI_API_KEY}
+      # Ollama configuration (default to using Ollama)
+      - USE_OLLAMA=${USE_OLLAMA:-true}
+      - OLLAMA_HOST=${OLLAMA_HOST:-http://host.docker.internal:11434}
+      - OLLAMA_MODEL=${OLLAMA_MODEL:-llama3.2:3b}
+      - OLLAMA_EMBEDDING_MODEL=${OLLAMA_EMBEDDING_MODEL:-nomic-embed-text}
+
+      # OpenAI API Key (optional, only needed if USE_OLLAMA=false)
+      - OPENAI_API_KEY=${OPENAI_API_KEY:-not-needed-for-ollama}
 
       # Fallback mode for when 1Password is unavailable
       - GRAPHITI_FALLBACK_MODE=${GRAPHITI_FALLBACK_MODE:-false}
@@ -40,8 +46,8 @@ services:
       - LOG_LEVEL=${LOG_LEVEL:-INFO}
 
       # Langfuse Configuration (Non-secret values)
-      - LANGFUSE_HOST=${LANGFUSE_HOST:-https://langfuse.local}
-      - LANGFUSE_TRACING_ENABLED=${LANGFUSE_TRACING_ENABLED:-true}
+      - LANGFUSE_HOST=${LANGFUSE_HOST:-http://langfuse.local}
+      - LANGFUSE_TRACING_ENABLED=${LANGFUSE_TRACING_ENABLED:-false}
       # Langfuse Secrets (injected by op run)
       - LANGFUSE_PUBLIC_KEY=${LANGFUSE_PUBLIC_KEY}
       - LANGFUSE_SECRET_KEY=${LANGFUSE_SECRET_KEY}
@@ -63,6 +69,18 @@ services:
       # SSL Configuration for OrbStack
       - SSL_CERT_FILE=/usr/local/share/ca-certificates/orbstack-root.crt
       - REQUESTS_CA_BUNDLE=/usr/local/share/ca-certificates/orbstack-root.crt
+
+      # SSL Bypass for Development (remove in production)
+      - PYTHONHTTPSVERIFY=0
+      - CURL_CA_BUNDLE=""
+      - SSL_VERIFY=false
+
+      # Disable telemetry to avoid SSL errors
+      - POSTHOG_DISABLED=true
+      - GRAPHITI_TELEMETRY_ENABLED=false
+
+      # Corporate proxy bypass
+      - NO_PROXY=localhost,127.0.0.1,*.local,neo4j.graphiti.local
 
     volumes:
       # Mount local code for development

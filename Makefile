@@ -96,9 +96,15 @@ show-secrets: ## Show secret references (not actual secrets)
 # === Docker Service Management ===
 
 .PHONY: build
-build: ## Build Docker image
-	@echo "$(BLUE)Building Docker image...$(NC)"
-	@docker compose build --no-cache
+build: ## Build Docker image with 1Password secrets
+	@echo "$(BLUE)Building Docker image with 1Password context...$(NC)"
+	@if [ -f $(SERVICE_TOKEN_FILE) ]; then \
+		source $(SERVICE_TOKEN_FILE) && \
+		op run --env-file=secrets/.env.1password -- docker compose build --no-cache; \
+	else \
+		echo "$(YELLOW)⚠️  Building without 1Password (secrets not available during build)$(NC)"; \
+		docker compose build --no-cache; \
+	fi
 	@# Tag the image with the expected name for the wrapper script
 	@docker tag graphiti-claude-code-mcp-graphiti-mcp:latest $(DOCKER_IMAGE) 2>/dev/null || true
 	@echo "$(GREEN)✅ Image built: $(DOCKER_IMAGE)$(NC)"
