@@ -20,7 +20,7 @@ ENV PYTHONPATH=/app
 ENV LOG_LEVEL=ERROR
 ENV NEO4J_URI=bolt://neo4j.graphiti.local:7687
 ENV NEO4J_USER=neo4j
-ENV LANGFUSE_HOST=https://langfuse.local
+ENV LANGFUSE_HOST=http://langfuse.local
 
 # Default command runs all tests
 CMD ["python", "-m", "pytest", "tests/test_langfuse*.py", "-v"]

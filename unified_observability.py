@@ -139,7 +139,7 @@ class UnifiedObservability:
         """Initialize Langfuse client with 1Password credentials"""
         public_key = os.getenv("LANGFUSE_PUBLIC_KEY")
         secret_key = os.getenv("LANGFUSE_SECRET_KEY")
-        host = os.getenv("LANGFUSE_HOST", "https://cloud.langfuse.com")
+        host = os.getenv("LANGFUSE_HOST", "http://langfuse.local")
 
         if not public_key or not secret_key:
             raise ValueError(

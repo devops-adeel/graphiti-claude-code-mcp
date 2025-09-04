@@ -34,7 +34,7 @@ def test_env():
         "OPENAI_API_KEY": os.environ.get("OPENAI_API_KEY", "test-openai-key"),
         "LANGFUSE_PUBLIC_KEY": os.environ.get("LANGFUSE_PUBLIC_KEY", "test-public-key"),
         "LANGFUSE_SECRET_KEY": os.environ.get("LANGFUSE_SECRET_KEY", "test-secret-key"),
-        "LANGFUSE_HOST": os.environ.get("LANGFUSE_HOST", "https://langfuse.local"),
+        "LANGFUSE_HOST": os.environ.get("LANGFUSE_HOST", "http://langfuse.local"),
         "NEO4J_HOST": os.environ.get("NEO4J_HOST", "neo4j.graphiti.local"),
         "NEO4J_PORT": os.environ.get("NEO4J_PORT", "7687"),
         "GRAPHITI_GROUP_ID": "test_graphiti_mcp",

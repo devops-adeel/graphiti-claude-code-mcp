@@ -74,7 +74,7 @@ async def get_langfuse_client():
             # Get the base host without protocol
             langfuse_host_for_otel = os.environ.get("LANGFUSE_HOST", "langfuse.local")
             # Remove any existing protocol prefix
-            if langfuse_host_for_otel.startswith("https://"):
+            if langfuse_host_for_otel.startswith("http://"):
                 langfuse_host_for_otel = langfuse_host_for_otel[8:]
             elif langfuse_host_for_otel.startswith("http://"):
                 langfuse_host_for_otel = langfuse_host_for_otel[7:]
@@ -112,9 +112,9 @@ async def get_langfuse_client():
 
             # Use environment variable for host if available, otherwise default
             langfuse_host = os.environ.get("LANGFUSE_HOST", "langfuse.local")
-            # Ensure host has https:// prefix if not present
-            if not langfuse_host.startswith(("http://", "https://")):
-                langfuse_host = f"https://{langfuse_host}"
+            # Ensure host has http:// prefix if not present
+            if not langfuse_host.startswith(("http://", "http://")):
+                langfuse_host = f"http://{langfuse_host}"
 
             Langfuse(
                 public_key=LANGFUSE_PUBLIC_KEY,

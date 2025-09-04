@@ -40,7 +40,7 @@ class TestLangfuseMCPProtocol:
                     "LANGFUSE_SECRET_KEY", "test-secret"
                 ),
                 "LANGFUSE_HOST": os.environ.get(
-                    "LANGFUSE_HOST", "https://langfuse.local"
+                    "LANGFUSE_HOST", "http://langfuse.local"
                 ),
                 "NEO4J_HOST": os.environ.get("NEO4J_HOST", "neo4j.graphiti.local"),
                 "NEO4J_PORT": os.environ.get("NEO4J_PORT", "7687"),

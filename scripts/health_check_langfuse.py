@@ -127,13 +127,13 @@ class LangfuseHealthCheck:
         """Validate SSL certificate for Langfuse host."""
         self.print_header("SSL Certificate Validation")
 
-        host = os.getenv("LANGFUSE_HOST", "https://cloud.langfuse.com")
+        host = os.getenv("LANGFUSE_HOST", "http://langfuse.local")
 
         # Remove path if present
-        if host.startswith(("http://", "https://")):
+        if host.startswith(("http://", "http://")):
             base_url = host.split("/")[0] + "//" + host.split("/")[2]
         else:
-            base_url = f"https://{host}"
+            base_url = f"http://{host}"
 
         success, message = self.ssl_config.validate_certificate(base_url)
         self.print_result(f"Certificate for {base_url}", success, message)
@@ -154,7 +154,7 @@ class LangfuseHealthCheck:
 
         public_key = os.getenv("LANGFUSE_PUBLIC_KEY")
         secret_key = os.getenv("LANGFUSE_SECRET_KEY")
-        host = os.getenv("LANGFUSE_HOST", "https://cloud.langfuse.com")
+        host = os.getenv("LANGFUSE_HOST", "http://langfuse.local")
 
         if not public_key or not secret_key:
             self.print_result("API Connection", False, "Missing credentials")
@@ -290,7 +290,7 @@ class LangfuseHealthCheck:
             ],
             "LANGFUSE_HOST": [
                 "1. Set LANGFUSE_HOST environment variable",
-                "2. For OrbStack: export LANGFUSE_HOST=https://langfuse.local",
+                "2. For OrbStack: export LANGFUSE_HOST=http://langfuse.local",
                 "3. For internal Docker: export LANGFUSE_HOST=http://langfuse-web:3000",
             ],
             "LANGFUSE_PUBLIC_KEY": [

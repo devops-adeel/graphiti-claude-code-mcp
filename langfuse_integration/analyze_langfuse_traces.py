@@ -33,7 +33,7 @@ def analyze_recent_traces(hours_back: int = 1, session_id: Optional[str] = None)
     # Initialize Langfuse client
     public_key = os.getenv("LANGFUSE_PUBLIC_KEY")
     secret_key = os.getenv("LANGFUSE_SECRET_KEY")
-    host = os.getenv("LANGFUSE_HOST", "https://cloud.langfuse.com")
+    host = os.getenv("LANGFUSE_HOST", "http://langfuse.local")
 
     if not public_key or not secret_key:
         print(
@@ -141,7 +141,7 @@ def get_trace_details(trace_id: str):
     # Initialize Langfuse client
     public_key = os.getenv("LANGFUSE_PUBLIC_KEY")
     secret_key = os.getenv("LANGFUSE_SECRET_KEY")
-    host = os.getenv("LANGFUSE_HOST", "https://cloud.langfuse.com")
+    host = os.getenv("LANGFUSE_HOST", "http://langfuse.local")
 
     langfuse = Langfuse(public_key=public_key, secret_key=secret_key, host=host)
 
@@ -471,7 +471,7 @@ def analyze_test_failure(session_id: str, return_data: bool = False):
     # Initialize Langfuse client
     public_key = os.getenv("LANGFUSE_PUBLIC_KEY")
     secret_key = os.getenv("LANGFUSE_SECRET_KEY")
-    host = os.getenv("LANGFUSE_HOST", "https://cloud.langfuse.com")
+    host = os.getenv("LANGFUSE_HOST", "http://langfuse.local")
 
     if not public_key or not secret_key:
         msg = (
@@ -655,7 +655,7 @@ def debug_session(session_id: str, focus: str = "all"):
     # Initialize Langfuse client
     public_key = os.getenv("LANGFUSE_PUBLIC_KEY")
     secret_key = os.getenv("LANGFUSE_SECRET_KEY")
-    host = os.getenv("LANGFUSE_HOST", "https://cloud.langfuse.com")
+    host = os.getenv("LANGFUSE_HOST", "http://langfuse.local")
 
     if not public_key or not secret_key:
         print("❌ Error: LANGFUSE_PUBLIC_KEY and LANGFUSE_SECRET_KEY not found")

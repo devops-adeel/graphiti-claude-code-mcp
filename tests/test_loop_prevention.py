@@ -43,7 +43,7 @@ async def test_loop_prevention():
     Langfuse(
         public_key=os.getenv("LANGFUSE_PUBLIC_KEY"),
         secret_key=os.getenv("LANGFUSE_SECRET_KEY"),
-        host="https://langfuse.local",
+        host="http://langfuse.local",
     )
     langfuse = get_client()
 
@@ -140,7 +140,7 @@ async def test_loop_prevention():
         x_langfuse_public_key=os.getenv("LANGFUSE_PUBLIC_KEY"),
         username=os.getenv("LANGFUSE_PUBLIC_KEY"),
         password=os.getenv("LANGFUSE_SECRET_KEY"),
-        base_url=os.getenv("LANGFUSE_HOST", "https://langfuse.local"),
+        base_url=os.getenv("LANGFUSE_HOST", "http://langfuse.local"),
     )
 
     from_timestamp = datetime.now() - timedelta(minutes=1)
@@ -176,7 +176,7 @@ async def test_metadata_filtering():
     Langfuse(
         public_key=os.getenv("LANGFUSE_PUBLIC_KEY"),
         secret_key=os.getenv("LANGFUSE_SECRET_KEY"),
-        host="https://langfuse.local",
+        host="http://langfuse.local",
     )
     langfuse = get_client()
 

@@ -15,7 +15,7 @@ os.environ.setdefault(
 os.environ.setdefault(
     "LANGFUSE_SECRET_KEY", "sk-lf-test-00000000-0000-0000-0000-000000000000"
 )
-os.environ.setdefault("LANGFUSE_HOST", "https://langfuse.local")
+os.environ.setdefault("LANGFUSE_HOST", "http://langfuse.local")
 os.environ.setdefault("MCP_TRACE_TAG", "mcp-internal")
 os.environ.setdefault("MCP_ANALYZER_TAG", "mcp-analyzer")
 os.environ.setdefault("MCP_SOURCE_IDENTIFIER", "mcp-server")

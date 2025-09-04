@@ -14,11 +14,11 @@ ssl:
 # Langfuse Configuration
 langfuse:
   # Use HTTPS with OrbStack custom domain
-  host: https://langfuse.local
+  host: http://langfuse.local
   # Alternative hosts for different network scenarios
   alternative_hosts:
-    - https://langfuse.local
-    - https://langfuse-web.langfuse-prod.orb.local
+    - http://langfuse.local
+    - http://langfuse-web.langfuse-prod.orb.local
     - http://langfuse-web:3000  # Internal Docker network fallback
 
   # Connection settings
@@ -42,7 +42,7 @@ network:
 
   # Health check endpoints
   health_check_urls:
-    - https://langfuse.local/api/health
+    - http://langfuse.local/api/health
     - http://langfuse-web:3000/api/health
 
 # Neo4j Configuration

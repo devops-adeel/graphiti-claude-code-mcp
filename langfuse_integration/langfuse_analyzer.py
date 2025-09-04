@@ -61,7 +61,7 @@ class LangfuseAnalyzer:
         """Initialize Langfuse analyzer with API credentials and SSL configuration"""
         self.public_key = os.getenv("LANGFUSE_PUBLIC_KEY")
         self.secret_key = os.getenv("LANGFUSE_SECRET_KEY")
-        self.host = os.getenv("LANGFUSE_HOST", "https://cloud.langfuse.com")
+        self.host = os.getenv("LANGFUSE_HOST", "http://langfuse.local")
 
         if not self.public_key or not self.secret_key:
             logger.warning("Langfuse API keys not configured")

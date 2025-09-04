@@ -71,7 +71,7 @@ async def test_capture_solution():
     test_context_3 = {
         "computer": "task",
         "test-type": "special_chars",
-        "url": "https://example.com:8080/path",
+        "url": "http://example.com:8080/path",
         "json": '{"nested": "json_string"}',
     }
 

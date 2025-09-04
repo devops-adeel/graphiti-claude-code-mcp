@@ -41,7 +41,7 @@ else
         --vault=HomeLab \
         'langfuse-public-key[text]=PLACEHOLDER_REPLACE_WITH_ACTUAL_KEY' \
         'langfuse-secret-key[password]=PLACEHOLDER_REPLACE_WITH_ACTUAL_SECRET' \
-        'langfuse-host[text]=https://langfuse.local' \
+        'langfuse-host[text]=http://langfuse.local' \
         'notes[text]=Langfuse observability platform credentials for MCP Server and trace analysis. IMPORTANT: Replace placeholder values with actual credentials from your Langfuse instance.' \
         --format=json | jq -r '.id')
 

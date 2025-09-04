@@ -101,9 +101,7 @@ async def test_unified_observability():
         print("✅ Context propagation via headers working")
 
         print("\n📊 View your traces:")
-        print(
-            f"   Langfuse: {os.getenv('LANGFUSE_HOST', 'https://cloud.langfuse.com')}"
-        )
+        print(f"   Langfuse: {os.getenv('LANGFUSE_HOST', 'http://langfuse.local')}")
         if os.getenv("OTLP_ENDPOINT"):
             print(f"   Grafana: http://grafana.local/explore")
 

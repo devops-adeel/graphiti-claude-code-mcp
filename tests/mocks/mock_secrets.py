@@ -22,7 +22,7 @@ class MockSecretsManager:
         "OPENAI_API_KEY": "test-openai-key-12345",
         "LANGFUSE_PUBLIC_KEY": "pk-lf-test-00000000-0000-0000-0000-000000000000",
         "LANGFUSE_SECRET_KEY": "sk-lf-test-00000000-0000-0000-0000-000000000000",
-        "LANGFUSE_HOST": "https://langfuse.local",
+        "LANGFUSE_HOST": "http://langfuse.local",
     }
 
     # Test config values

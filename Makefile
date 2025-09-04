@@ -350,7 +350,7 @@ langfuse-health-verbose: ## Run verbose Langfuse health check with debugging
 .PHONY: test-langfuse-local
 test-langfuse-local: ## Test Langfuse connection locally
 	@echo "$(BLUE)Testing Langfuse connection locally...$(NC)"
-	@export LANGFUSE_HOST=https://langfuse.local && \
+	@export LANGFUSE_HOST=http://langfuse.local && \
 	export LANGFUSE_PUBLIC_KEY=$$(op item get ctyxybforywkjp2krbdpeulzzq --fields "Langfuse.langfuse-public-key" 2>/dev/null) && \
 	export LANGFUSE_SECRET_KEY=$$(op item get ctyxybforywkjp2krbdpeulzzq --fields "Langfuse.langfuse-secret-key" 2>/dev/null) && \
 	python -c "from ssl_config import create_langfuse_httpx_client; from langfuse import Langfuse; import os; \
@@ -386,7 +386,7 @@ fix-ssl: ## Apply SSL certificate fixes
 	fi
 	@echo ""
 	@echo "$(YELLOW)2. Setting Langfuse environment...$(NC)"
-	@echo "export LANGFUSE_HOST=https://langfuse.local"
+	@echo "export LANGFUSE_HOST=http://langfuse.local"
 	@echo "export SSL_CERT_FILE=/usr/local/share/ca-certificates/orbstack-root.crt"
 	@echo ""
 	@echo "$(GREEN)Run these commands in your shell:$(NC)"
