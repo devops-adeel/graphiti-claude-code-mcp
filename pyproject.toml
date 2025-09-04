@@ -1,6 +1,6 @@
 [project]
 name = "graphiti-claude-code-mcp"
-version = "3.4.0"
+version = "3.4.1"
 description = "Graphiti memory layer for Claude Code with GTD Coach integration"
 authors = [{name = "Adeel", email = "adeelahmad@live.co.uk"}]
 requires-python = ">=3.9"
