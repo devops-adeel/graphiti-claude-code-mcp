@@ -75,9 +75,9 @@ async def get_langfuse_client():
             langfuse_host_for_otel = os.environ.get("LANGFUSE_HOST", "langfuse.local")
             # Remove any existing protocol prefix
             if langfuse_host_for_otel.startswith("http://"):
-                langfuse_host_for_otel = langfuse_host_for_otel[8:]
-            elif langfuse_host_for_otel.startswith("http://"):
                 langfuse_host_for_otel = langfuse_host_for_otel[7:]
+            elif langfuse_host_for_otel.startswith("https://"):
+                langfuse_host_for_otel = langfuse_host_for_otel[8:]
 
             # Use HTTP for OTLP endpoint to avoid SSL verification issues
             os.environ["OTEL_EXPORTER_OTLP_ENDPOINT"] = (
