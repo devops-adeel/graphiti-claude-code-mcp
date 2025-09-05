@@ -332,7 +332,7 @@ rebuild: down build up ## Rebuild and restart with 1Password
 .PHONY: ssl-check
 ssl-check: ## Check SSL configuration
 	@echo "$(BLUE)Checking SSL configuration...$(NC)"
-	@python ssl_config.py https://langfuse.local || true
+	@python ssl_config.py http://langfuse.local || true
 	@echo ""
 	@echo "$(BLUE)SSL Config Details:$(NC)"
 	@python -c "from ssl_config import get_ssl_config; c=get_ssl_config(); import json; print(json.dumps(c.get_info(), indent=2))"
@@ -390,5 +390,5 @@ fix-ssl: ## Apply SSL certificate fixes
 	@echo "export SSL_CERT_FILE=/usr/local/share/ca-certificates/orbstack-root.crt"
 	@echo ""
 	@echo "$(GREEN)Run these commands in your shell:$(NC)"
-	@echo "  export LANGFUSE_HOST=https://langfuse.local"
+	@echo "  export LANGFUSE_HOST=http://langfuse.local"
 	@echo "  export SSL_CERT_FILE=/usr/local/share/ca-certificates/orbstack-root.crt"

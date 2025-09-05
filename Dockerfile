@@ -23,10 +23,14 @@ RUN --mount=type=cache,target=/root/.cache/pip \
         mcp>=1.0.0 \
         neo4j>=5.0.0 \
         tiktoken>=0.5.0 \
-        langfuse>=3.3.0
+        langfuse>=3.3.0 \
+        ollama>=0.1.0
 
 # Copy only necessary source files
 COPY *.py ./
+# Explicitly copy Ollama integration files
+COPY ollama_native_client.py ./
+COPY ollama_embedder_wrapper.py ./
 COPY config/ ./config/
 COPY langfuse_integration/ ./langfuse_integration/
 COPY instrumentation/ ./instrumentation/
