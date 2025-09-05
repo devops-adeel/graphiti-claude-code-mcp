@@ -17,18 +17,18 @@ from enum import Enum
 from dotenv import load_dotenv
 from graphiti_core import Graphiti
 from graphiti_core.llm_client.config import LLMConfig
-from graphiti_core.llm_client.openai_client import OpenAIClient
-from graphiti_core.llm_client.openai_generic_client import OpenAIGenericClient
-from graphiti_core.embedder.openai import OpenAIEmbedder, OpenAIEmbedderConfig
-from ollama_embedder import OllamaEmbedderWrapper  # Custom wrapper for Ollama
+
+# OpenAI imports removed - using Ollama only
+# Removed duplicate import - using the correct one below
 from ollama_native_client import (
     OllamaNativeClient,
 )  # Native Ollama client for structured outputs
 from ollama_embedder_wrapper import OllamaEmbedder  # Native Ollama embedder
 from graphiti_core.nodes import EpisodeType
 from graphiti_core.utils.bulk_utils import RawEpisode
-import httpx
-from openai import AsyncOpenAI
+
+# httpx import removed - was only used for OpenAI SSL bypass
+# AsyncOpenAI import removed - using Ollama only
 
 logger = logging.getLogger(__name__)
 
@@ -448,61 +448,29 @@ class SharedMemory:
             logger.info("Retrying initialization with loaded OPENAI_API_KEY")
 
             # Update LLM config for Ollama
-            use_ollama = os.getenv("USE_OLLAMA", "true").lower() == "true"
-            if use_ollama:
-                # Ollama configuration
-                llm_config = LLMConfig(
-                    api_key="ollama",  # Ollama doesn't need a real key
-                    model=os.getenv("OLLAMA_MODEL", "llama3.2:3b"),
-                    small_model=os.getenv("OLLAMA_MODEL", "llama3.2:3b"),
-                    base_url="http://host.docker.internal:11434/v1",
-                    temperature=0.1,
-                    max_tokens=4096,
-                )
-            else:
-                # OpenAI configuration (fallback)
-                llm_config = LLMConfig(
-                    api_key=api_key,
-                    model=os.getenv("OPENAI_MODEL", "gpt-4o-mini"),
-                    temperature=0.1,
-                    max_tokens=4096,
-                )
-
-            # Create async client with SSL bypass and increased timeout
-            timeout_config = httpx.Timeout(60.0, connect=10.0, read=50.0)
-            http_client = httpx.AsyncClient(
-                timeout=timeout_config,
-                verify=False,  # Bypass SSL for corporate proxy
-                limits=httpx.Limits(max_keepalive_connections=5, max_connections=10),
-            )
-
-            openai_client = AsyncOpenAI(
-                api_key=api_key, http_client=http_client, max_retries=5
+            # Always use Ollama (no OpenAI fallback)
+            use_ollama = True
+            # Ollama configuration only
+            llm_config = LLMConfig(
+                api_key="ollama",  # Ollama doesn't need a real key
+                model=os.getenv("OLLAMA_MODEL", "llama3.2:3b"),
+                small_model=os.getenv("OLLAMA_MODEL", "llama3.2:3b"),
+                base_url="http://host.docker.internal:11434/v1",
+                temperature=0.1,
+                max_tokens=4096,
             )
 
             # Use native Ollama client for proper structured outputs
-            if use_ollama:
-                self.llm_client = OllamaNativeClient(config=llm_config)
-            else:
-                self.llm_client = OpenAIClient(config=llm_config, client=openai_client)
+            self.llm_client = OllamaNativeClient(config=llm_config)
 
-            # Update embedder config for Ollama or OpenAI
-            if use_ollama:
-                # Use native Ollama embedder
-                self.embedder = OllamaEmbedder(
-                    model=os.getenv("OLLAMA_EMBEDDING_MODEL", "nomic-embed-text"),
-                    host="http://host.docker.internal:11434",
-                    embedding_dim=768,  # nomic-embed-text dimension
-                )
-            else:
-                # OpenAI embedder configuration (fallback)
-                embedder_config = OpenAIEmbedderConfig(
-                    api_key=api_key,
-                    embedding_model=os.getenv(
-                        "OPENAI_EMBEDDING_MODEL", "text-embedding-3-small"
-                    ),
-                )
-                self.embedder = OpenAIEmbedder(config=embedder_config)
+            # Use native Ollama embedder with configurable dimensions
+            self.embedder = OllamaEmbedder(
+                model=os.getenv("OLLAMA_EMBEDDING_MODEL", "nomic-embed-text"),
+                host="http://host.docker.internal:11434",
+                embedding_dim=int(
+                    os.getenv("OLLAMA_EMBEDDING_DIM", "768")
+                ),  # Configurable dimension
+            )
 
             # Recreate Graphiti client with updated components
             self.client = Graphiti(self.driver, self.llm_client, self.embedder)
@@ -540,69 +508,34 @@ class SharedMemory:
                 self._deferred_init = False
 
             # Check if we should use Ollama
-            use_ollama = os.getenv("USE_OLLAMA", "true").lower() == "true"
+            # Always use Ollama (no OpenAI fallback)
+            use_ollama = True
 
-            if use_ollama:
-                # Use Ollama for both LLM and embeddings
-                # Detect if running in Docker or on host
-                ollama_host = os.getenv("OLLAMA_HOST", "http://localhost:11434")
-                if not ollama_host.endswith("/v1"):
-                    ollama_host = f"{ollama_host}/v1"
+            # Use Ollama for both LLM and embeddings
+            # Detect if running in Docker or on host
+            ollama_host = os.getenv("OLLAMA_HOST", "http://localhost:11434")
+            if not ollama_host.endswith("/v1"):
+                ollama_host = f"{ollama_host}/v1"
 
-                llm_config = LLMConfig(
-                    api_key="ollama",  # Ollama doesn't need a real key
-                    model=os.getenv("OLLAMA_MODEL", "llama3.2:3b"),
-                    base_url=ollama_host,
-                    temperature=0.1,
-                    max_tokens=4096,
-                )
-            else:
-                # Fallback to OpenAI
-                llm_config = LLMConfig(
-                    api_key=api_key,
-                    model=os.getenv("OPENAI_MODEL", "gpt-4o-mini"),
-                    temperature=0.1,
-                    max_tokens=4096,
-                )
+            llm_config = LLMConfig(
+                api_key="ollama",  # Ollama doesn't need a real key
+                model=os.getenv("OLLAMA_MODEL", "llama3.2:3b"),
+                base_url=ollama_host,
+                temperature=0.1,
+                max_tokens=4096,
+            )
 
-            # Create client based on configuration
-            if use_ollama:
-                # Use native Ollama client for proper structured output support
-                llm_client = OllamaNativeClient(config=llm_config)
-            else:
-                # For OpenAI, use SSL bypass
-                timeout_config = httpx.Timeout(60.0, connect=10.0, read=50.0)
-                http_client = httpx.AsyncClient(
-                    timeout=timeout_config,
-                    verify=False,  # Bypass SSL for corporate proxy
-                    limits=httpx.Limits(
-                        max_keepalive_connections=5, max_connections=10
-                    ),
-                )
+            # Use native Ollama client for proper structured output support
+            llm_client = OllamaNativeClient(config=llm_config)
 
-                openai_client = AsyncOpenAI(
-                    api_key=api_key, http_client=http_client, max_retries=5
-                )
-
-                llm_client = OpenAIClient(config=llm_config, client=openai_client)
-
-            # Initialize embedder based on configuration
-            if use_ollama:
-                # Use native Ollama embedder for proper parameter handling
-                embedder = OllamaEmbedder(
-                    model=os.getenv("OLLAMA_EMBEDDING_MODEL", "nomic-embed-text"),
-                    host=ollama_host,
-                    embedding_dim=768,  # nomic-embed-text dimension
-                )
-            else:
-                # OpenAI embedder configuration
-                embedder_config = OpenAIEmbedderConfig(
-                    api_key=api_key,
-                    embedding_model=os.getenv(
-                        "OPENAI_EMBEDDING_MODEL", "text-embedding-3-small"
-                    ),
-                )
-                embedder = OpenAIEmbedder(config=embedder_config)
+            # Use native Ollama embedder with configurable dimensions
+            embedder = OllamaEmbedder(
+                model=os.getenv("OLLAMA_EMBEDDING_MODEL", "nomic-embed-text"),
+                host=ollama_host,
+                embedding_dim=int(
+                    os.getenv("OLLAMA_EMBEDDING_DIM", "768")
+                ),  # Configurable dimension
+            )
 
             # Initialize Graphiti client with Neo4j credentials directly
             # Get password from 1Password
