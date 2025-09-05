@@ -16,18 +16,23 @@ logger = logging.getLogger(__name__)
 
 
 class CascadeType(Enum):
-    """Types of cascade patterns."""
+    """Types of cascade patterns including Gen AI specific patterns."""
 
     MEMORY_EXHAUSTION = "memory_exhaustion"
     LATENCY_PROPAGATION = "latency_propagation"
     SEMAPHORE_STARVATION = "semaphore_starvation"
     BATCH_OVERFLOW = "batch_overflow"
     LLM_TIMEOUT = "llm_timeout"
+    # Gen AI specific cascade types
+    TOKEN_OVERFLOW = "token_overflow"  # Context window exceeded
+    MODEL_STRUGGLING = "model_struggling"  # Temperature adjustments, retries
+    CONVERSATION_LOOP = "conversation_loop"  # Repetitive tool calls
+    GPU_SATURATION = "gpu_saturation"  # Local model resource exhaustion
 
 
 @dataclass
 class CascadeEvent:
-    """Individual event in a cascade pattern."""
+    """Individual event in a cascade pattern with Gen AI attributes."""
 
     timestamp: datetime
     operation: str
@@ -36,6 +41,12 @@ class CascadeEvent:
     memory_percent: float
     error: Optional[str] = None
     trace_id: Optional[str] = None
+    # Gen AI specific attributes
+    finish_reason: Optional[str] = None  # stop, length, error, etc.
+    temperature: Optional[float] = None  # Model temperature setting
+    token_count: Optional[int] = None  # Total tokens used
+    model: Optional[str] = None  # Model name
+    gpu_memory_mb: Optional[float] = None  # GPU memory for local models
 
     @property
     def severity(self) -> float:
@@ -172,7 +183,38 @@ class CascadeDetector:
                 "Use simpler prompts",
                 "Switch to faster model",
             ],
+            # Gen AI specific mitigations
+            CascadeType.TOKEN_OVERFLOW: [
+                "Reduce prompt length",
+                "Implement context window management",
+                "Use summarization for long contexts",
+                "Switch to model with larger context",
+            ],
+            CascadeType.MODEL_STRUGGLING: [
+                "Lower temperature setting",
+                "Use more deterministic prompts",
+                "Switch to more capable model",
+                "Add few-shot examples",
+            ],
+            CascadeType.CONVERSATION_LOOP: [
+                "Break conversation context",
+                "Reset tool call history",
+                "Implement loop detection",
+                "Add conversation timeout",
+            ],
+            CascadeType.GPU_SATURATION: [
+                "Reduce model precision (fp16)",
+                "Implement model quantization",
+                "Add GPU memory monitoring",
+                "Switch to CPU inference",
+                "Use smaller model variant",
+            ],
         }
+
+        # Gen AI specific tracking
+        self.temperature_adjustments: deque = deque(maxlen=100)
+        self.finish_reason_history: deque = deque(maxlen=100)
+        self.tool_call_patterns: deque = deque(maxlen=100)
 
         logger.info(
             f"CascadeDetector initialized: window={window_seconds}s, "

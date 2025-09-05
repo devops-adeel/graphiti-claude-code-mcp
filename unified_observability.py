@@ -18,13 +18,21 @@ from langfuse import Langfuse, observe
 
 # OpenTelemetry imports (optional - graceful degradation if not available)
 try:
-    from opentelemetry import trace, baggage, context
+    from opentelemetry import trace, baggage, context, metrics
     from opentelemetry.propagate import inject, extract
     from opentelemetry.trace import Status, StatusCode
     from opentelemetry.sdk.trace import TracerProvider
+    from opentelemetry.sdk.metrics import MeterProvider
+    from opentelemetry.sdk.metrics.export import PeriodicExportingMetricReader
     from opentelemetry.sdk.resources import Resource
     from opentelemetry.semconv.resource import ResourceAttributes
     from opentelemetry.exporter.otlp.proto.grpc.trace_exporter import OTLPSpanExporter
+    from opentelemetry.exporter.otlp.proto.grpc.metric_exporter import (
+        OTLPMetricExporter,
+    )
+    from opentelemetry.exporter.otlp.proto.http.trace_exporter import (
+        OTLPSpanExporter as HTTPSpanExporter,
+    )
     from opentelemetry.sdk.trace.export import BatchSpanProcessor
 
     OTEL_AVAILABLE = True
@@ -34,6 +42,28 @@ except ImportError:
     logger.warning(
         "OpenTelemetry not available. Only Langfuse tracking will be active."
     )
+
+
+# Gen AI semantic conventions attributes
+class GenAIAttributes:
+    """OpenTelemetry Gen AI semantic convention attributes"""
+
+    GEN_AI_SYSTEM = "gen_ai.system"
+    GEN_AI_REQUEST_MODEL = "gen_ai.request.model"
+    GEN_AI_RESPONSE_MODEL = "gen_ai.response.model"
+    GEN_AI_OPERATION_NAME = "gen_ai.operation.name"
+    GEN_AI_CONVERSATION_ID = "gen_ai.conversation.id"
+    GEN_AI_USAGE_INPUT_TOKENS = "gen_ai.usage.input_tokens"
+    GEN_AI_USAGE_OUTPUT_TOKENS = "gen_ai.usage.output_tokens"
+    GEN_AI_REQUEST_TEMPERATURE = "gen_ai.request.temperature"
+    GEN_AI_REQUEST_MAX_TOKENS = "gen_ai.request.max_tokens"
+    GEN_AI_REQUEST_TOP_P = "gen_ai.request.top_p"
+    GEN_AI_RESPONSE_FINISH_REASONS = "gen_ai.response.finish_reasons"
+    # Local model extensions
+    GEN_AI_RESOURCE_INFERENCE_MS = "gen_ai.resource.inference_ms"
+    GEN_AI_RESOURCE_MODEL_LOAD_MS = "gen_ai.resource.model_load_ms"
+    GEN_AI_RESOURCE_GPU_MEMORY_MB = "gen_ai.resource.gpu_memory_mb"
+
 
 logger = logging.getLogger(__name__)
 
@@ -123,14 +153,18 @@ class UnifiedObservability:
     """
 
     def __init__(self):
-        """Initialize unified observability"""
+        """Initialize unified observability with Gen AI support"""
         # Initialize Langfuse (mandatory)
         self.langfuse = self._init_langfuse()
 
-        # Initialize OpenTelemetry (optional)
+        # Initialize OpenTelemetry with dual export (optional)
         self.tracer = None
+        self.meter = None
         if OTEL_AVAILABLE:
-            self.tracer = self._init_opentelemetry()
+            self.tracer, self.meter = self._init_opentelemetry_dual()
+
+        # Auto-instrument Gen AI libraries if available
+        self._auto_instrument_genai()
 
         # Track active contexts for correlation
         self.active_contexts: Dict[str, UnifiedTraceContext] = {}
@@ -149,34 +183,87 @@ class UnifiedObservability:
 
         return Langfuse(public_key=public_key, secret_key=secret_key, host=host)
 
-    def _init_opentelemetry(self):
-        """Initialize OpenTelemetry tracer if available"""
+    def _init_opentelemetry_dual(self):
+        """Initialize OpenTelemetry with dual export to Alloy and Langfuse"""
         if not OTEL_AVAILABLE:
-            return None
+            return None, None
 
-        # Create resource
+        # Create resource with Gen AI attributes
         resource = Resource.create(
             {
                 ResourceAttributes.SERVICE_NAME: "graphiti-mcp",
                 ResourceAttributes.SERVICE_VERSION: "1.0.0",
                 "deployment.environment": "orbstack",
                 "mcp.server.type": "graphiti",
+                "gen_ai.enabled": True,
             }
         )
 
-        # Set up tracing
+        # Set up tracing with dual export
         provider = TracerProvider(resource=resource)
 
-        # Add OTLP exporter if configured
-        otlp_endpoint = os.getenv("OTLP_ENDPOINT")
-        if otlp_endpoint:
-            processor = BatchSpanProcessor(
-                OTLPSpanExporter(endpoint=otlp_endpoint, insecure=True)
+        # Export to Grafana Alloy (gRPC)
+        alloy_endpoint = os.getenv(
+            "OTEL_EXPORTER_OTLP_ENDPOINT", "http://alloy.local:4317"
+        )
+        if alloy_endpoint:
+            alloy_processor = BatchSpanProcessor(
+                OTLPSpanExporter(endpoint=alloy_endpoint, insecure=True)
             )
-            provider.add_span_processor(processor)
+            provider.add_span_processor(alloy_processor)
+            logger.info(f"Configured Alloy export to {alloy_endpoint}")
+
+        # Export to Langfuse OTLP endpoint (HTTP with auth)
+        langfuse_otlp = os.getenv(
+            "LANGFUSE_OTLP_ENDPOINT", "http://langfuse.local:3000/api/public/otel"
+        )
+        langfuse_auth = os.getenv("LANGFUSE_AUTH_BASE64")
+
+        if langfuse_otlp and langfuse_auth:
+            headers = {"Authorization": f"Basic {langfuse_auth}"}
+            langfuse_processor = BatchSpanProcessor(
+                HTTPSpanExporter(endpoint=langfuse_otlp, headers=headers)
+            )
+            provider.add_span_processor(langfuse_processor)
+            logger.info(f"Configured Langfuse OTLP export to {langfuse_otlp}")
 
         trace.set_tracer_provider(provider)
-        return trace.get_tracer("graphiti-mcp")
+
+        # Set up metrics
+        metric_readers = []
+        if alloy_endpoint:
+            metric_reader = PeriodicExportingMetricReader(
+                exporter=OTLPMetricExporter(endpoint=alloy_endpoint, insecure=True),
+                export_interval_millis=30000,
+            )
+            metric_readers.append(metric_reader)
+
+        metric_provider = MeterProvider(
+            resource=resource, metric_readers=metric_readers
+        )
+        metrics.set_meter_provider(metric_provider)
+
+        return trace.get_tracer("graphiti-mcp"), metrics.get_meter("graphiti-mcp")
+
+    def _auto_instrument_genai(self):
+        """Auto-instrument Gen AI libraries if available"""
+        try:
+            # Try Ollama instrumentation
+            from opentelemetry.instrumentation.ollama import OllamaInstrumentor
+
+            OllamaInstrumentor().instrument()
+            logger.info("Auto-instrumented Ollama")
+        except ImportError:
+            pass
+
+        try:
+            # Try OpenAI instrumentation
+            from opentelemetry.instrumentation.openai_v2 import OpenAIInstrumentor
+
+            OpenAIInstrumentor().instrument()
+            logger.info("Auto-instrumented OpenAI")
+        except ImportError:
+            pass
 
     def get_current_context(self) -> UnifiedTraceContext:
         """Get current unified trace context"""
@@ -285,6 +372,127 @@ class UnifiedObservability:
                     f"Score recorded: {name}",
                     {"score_value": value, "langfuse_trace_id": trace_id},
                 )
+
+    def map_ollama_to_genai(
+        self, ollama_response: Dict[str, Any], span: Optional[Any] = None
+    ):
+        """
+        Map Ollama response to Gen AI semantic conventions
+
+        Args:
+            ollama_response: Ollama API response
+            span: Optional span to add attributes to (uses current if not provided)
+        """
+        if not OTEL_AVAILABLE:
+            return
+
+        if span is None:
+            span = trace.get_current_span()
+
+        if not span:
+            return
+
+        # Map model information
+        if "model" in ollama_response:
+            span.set_attribute(
+                GenAIAttributes.GEN_AI_RESPONSE_MODEL, ollama_response["model"]
+            )
+            span.set_attribute(GenAIAttributes.GEN_AI_SYSTEM, "ollama")
+
+        # Map done_reason to finish_reasons
+        if "done_reason" in ollama_response:
+            done_reason = ollama_response["done_reason"]
+            if done_reason == "stop":
+                finish_reason = "stop"
+            elif done_reason == "length":
+                finish_reason = "length"
+            else:
+                finish_reason = done_reason
+            span.set_attribute(
+                GenAIAttributes.GEN_AI_RESPONSE_FINISH_REASONS, [finish_reason]
+            )
+
+        # Map token usage
+        if "prompt_eval_count" in ollama_response:
+            span.set_attribute(
+                GenAIAttributes.GEN_AI_USAGE_INPUT_TOKENS,
+                ollama_response["prompt_eval_count"],
+            )
+
+        if "eval_count" in ollama_response:
+            span.set_attribute(
+                GenAIAttributes.GEN_AI_USAGE_OUTPUT_TOKENS,
+                ollama_response["eval_count"],
+            )
+
+        # Map performance metrics for local models
+        if "total_duration" in ollama_response:
+            inference_ms = ollama_response["total_duration"] / 1_000_000  # ns to ms
+            span.set_attribute(
+                GenAIAttributes.GEN_AI_RESOURCE_INFERENCE_MS, inference_ms
+            )
+
+        if "load_duration" in ollama_response:
+            load_ms = ollama_response["load_duration"] / 1_000_000  # ns to ms
+            span.set_attribute(GenAIAttributes.GEN_AI_RESOURCE_MODEL_LOAD_MS, load_ms)
+
+    @contextmanager
+    def trace_gen_ai_operation(
+        self,
+        operation_name: str = "chat",
+        model: Optional[str] = None,
+        temperature: Optional[float] = None,
+        max_tokens: Optional[int] = None,
+        conversation_id: Optional[str] = None,
+    ):
+        """
+        Context manager for tracing Gen AI operations with semantic conventions
+
+        Args:
+            operation_name: Type of operation (chat, completion, embedding)
+            model: Model name being used
+            temperature: Temperature setting
+            max_tokens: Max tokens setting
+            conversation_id: Conversation/session ID for correlation
+        """
+        if not OTEL_AVAILABLE or not self.tracer:
+            yield None
+            return
+
+        # Create span with Gen AI naming convention
+        span_name = f"{operation_name}"
+        if model:
+            span_name = f"{operation_name} {model}"
+
+        with self.tracer.start_as_current_span(span_name) as span:
+            # Set Gen AI attributes
+            span.set_attribute(GenAIAttributes.GEN_AI_OPERATION_NAME, operation_name)
+
+            if model:
+                span.set_attribute(GenAIAttributes.GEN_AI_REQUEST_MODEL, model)
+
+            if temperature is not None:
+                span.set_attribute(
+                    GenAIAttributes.GEN_AI_REQUEST_TEMPERATURE, temperature
+                )
+
+            if max_tokens is not None:
+                span.set_attribute(
+                    GenAIAttributes.GEN_AI_REQUEST_MAX_TOKENS, max_tokens
+                )
+
+            if conversation_id:
+                span.set_attribute(
+                    GenAIAttributes.GEN_AI_CONVERSATION_ID, conversation_id
+                )
+
+            try:
+                yield span
+                span.set_status(Status(StatusCode.OK))
+            except Exception as e:
+                span.record_exception(e)
+                span.set_status(Status(StatusCode.ERROR, str(e)))
+                raise
 
 
 def unified_observe(name: Optional[str] = None):
