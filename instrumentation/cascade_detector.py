@@ -325,7 +325,7 @@ class CascadeDetector:
         self, events: List[CascadeEvent]
     ) -> Optional[CascadeType]:
         """
-        Identify the type of cascade from event patterns.
+        Identify the type of cascade from event patterns including Gen AI patterns.
 
         Args:
             events: List of events to analyze
@@ -342,6 +342,48 @@ class CascadeDetector:
         avg_duration = sum(e.duration for e in events) / len(events)
         error_rate = sum(1 for e in events if e.error) / len(events)
 
+        # Gen AI specific indicators
+        finish_reasons = [e.finish_reason for e in events if e.finish_reason]
+        length_finish_count = sum(1 for r in finish_reasons if r == "length")
+        temperature_changes = sum(
+            1
+            for i in range(1, len(events))
+            if events[i].temperature
+            and events[i - 1].temperature
+            and events[i].temperature != events[i - 1].temperature
+        )
+
+        # Check for token overflow (Ollama "length" finish reason)
+        if length_finish_count >= 2 or (
+            length_finish_count > 0 and avg_memory_delta > 100
+        ):
+            return CascadeType.TOKEN_OVERFLOW
+
+        # Check for model struggling (temperature adjustments, retries)
+        if temperature_changes >= 2 or (
+            error_rate > 0.2 and any(e.temperature for e in events)
+        ):
+            return CascadeType.MODEL_STRUGGLING
+
+        # Check for conversation loops (repetitive tool calls)
+        operations = [e.operation for e in events[-10:]]
+        if len(operations) >= 5:
+            # Check for repeating pattern
+            for pattern_len in [2, 3, 4]:
+                if len(operations) >= pattern_len * 2:
+                    pattern = operations[:pattern_len]
+                    if operations[pattern_len : pattern_len * 2] == pattern:
+                        return CascadeType.CONVERSATION_LOOP
+
+        # Check for GPU saturation (local models)
+        gpu_events = [e for e in events if e.gpu_memory_mb is not None]
+        if gpu_events:
+            avg_gpu_memory = sum(e.gpu_memory_mb for e in gpu_events) / len(gpu_events)
+            max_gpu_memory = max(e.gpu_memory_mb for e in gpu_events)
+            if max_gpu_memory > 4000 or (avg_gpu_memory > 3000 and avg_duration > 5):
+                return CascadeType.GPU_SATURATION
+
+        # Original cascade patterns
         # Memory exhaustion pattern
         if max_memory_percent > 75 and avg_memory_delta > 50:
             return CascadeType.MEMORY_EXHAUSTION
@@ -371,6 +413,8 @@ class CascadeDetector:
                 avg_duration > 3,
                 error_rate > 0.2,
                 len(events) > 7,
+                length_finish_count > 0,  # Gen AI indicator
+                temperature_changes > 0,  # Gen AI indicator
             ]
         )
 
