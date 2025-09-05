@@ -178,3 +178,4 @@ $RECYCLE.BIN/
 *.msp
 *.lnk
 .tiktoken_cache/
+venv312/
