@@ -4,12 +4,38 @@ All notable changes to Graphiti Claude Code MCP will be documented in this file.
 
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
+## [Unreleased]
+
+
+### 🚀 Features
+
+- *(observability)* Add dual export to Alloy and Langfuse OTLP
+
+### 🐛 Bug Fixes
+
+- *(mcp)* Adjust server initialization for Ollama client
+
+### 🚜 Refactor
+
+- *(llm)* [**breaking**] Migrate from hybrid OpenAI/Ollama to pure Ollama
+
+### 📚 Documentation
+
+- Add 1024-dimension solution documentation
+
+### ⚙️ Miscellaneous Tasks
+
+- *(build)* Update Docker and Make configurations
 ## [3.4.1](https://github.com/adeel/graphiti-claude-code-mcp/compare/v3.4.0..v3.4.1) - 2025-09-04
 
 
 ### 🐛 Bug Fixes
 
 - *(langfuse)* Switch from HTTPS to HTTP for local development
+
+### 📚 Documentation
+
+- *(changelog)* Update for v3.4.1 release
 
 ### ⚙️ Miscellaneous Tasks
 
