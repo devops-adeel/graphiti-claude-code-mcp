@@ -271,6 +271,12 @@ class SecretsManager:
         if not self._initialized:
             await self._initialize()
 
+        # Check if value is already in environment (from direnv)
+        env_value = os.getenv(key)
+        if env_value:
+            logger.debug(f"Using environment variable for {key}")
+            return env_value
+
         # Check cache first
         if key in self._cache:
             value, timestamp = self._cache[key]

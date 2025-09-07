@@ -30,6 +30,22 @@ help: ## Show this help message
 
 # === Configuration Management ===
 
+.PHONY: direnv-refresh
+direnv-refresh: ## Force refresh direnv cache from 1Password
+	@echo "$(BLUE)Refreshing direnv cache from 1Password...$(NC)"
+	@rm -rf .direnv/cache.env .env
+	@~/.config/1password/op-env load > /dev/null 2>&1
+	@if [ -f /tmp/.env ]; then \
+		mkdir -p .direnv; \
+		cp /tmp/.env .direnv/cache.env; \
+		cp /tmp/.env .env; \
+		echo "$(GREEN)✅ Cache refreshed$(NC)"; \
+		echo "  Run 'direnv reload' to load variables"; \
+	else \
+		echo "$(RED)❌ Failed to refresh cache$(NC)"; \
+		exit 1; \
+	fi
+
 .PHONY: fix-config
 fix-config: ## Fix configuration to match GTD Coach
 	@echo "$(BLUE)Fixing configuration alignment with GTD Coach...$(NC)"
@@ -44,18 +60,30 @@ fix-config: ## Fix configuration to match GTD Coach
 .PHONY: verify-config
 verify-config: ## Verify configuration matches GTD Coach
 	@echo "$(BLUE)Verifying configuration alignment...$(NC)"
-	@if grep -q "GRAPHITI_GROUP_ID=shared_knowledge" .env.graphiti; then \
+	@# Check if using direnv (cache.env) or legacy (.env.graphiti)
+	@if [ -f .direnv/cache.env ]; then \
+		CONFIG_FILE=".direnv/cache.env"; \
+	elif [ -f .env ]; then \
+		CONFIG_FILE=".env"; \
+	elif [ -f .env.graphiti ]; then \
+		CONFIG_FILE=".env.graphiti"; \
+	else \
+		echo "$(RED)❌ No configuration file found$(NC)"; \
+		echo "  Run: make direnv-refresh"; \
+		exit 1; \
+	fi; \
+	if grep -q "GRAPHITI_GROUP_ID=shared_knowledge" $$CONFIG_FILE; then \
 		echo "$(GREEN)✅ GRAPHITI_GROUP_ID correct$(NC)"; \
 	else \
 		echo "$(RED)❌ GRAPHITI_GROUP_ID incorrect$(NC)"; \
-		echo "  Run: make fix-config"; \
+		echo "  Check $$CONFIG_FILE"; \
 		exit 1; \
-	fi
-	@if grep -q "NEO4J_DATABASE=neo4j" .env.graphiti; then \
+	fi; \
+	if grep -q "NEO4J_DATABASE=neo4j" $$CONFIG_FILE || grep -q "NEO4J_DATABASE=\"neo4j\"" $$CONFIG_FILE; then \
 		echo "$(GREEN)✅ NEO4J_DATABASE correct (neo4j for Community Edition)$(NC)"; \
 	else \
 		echo "$(RED)❌ NEO4J_DATABASE incorrect (must be 'neo4j' for Community Edition)$(NC)"; \
-		echo "  Run: make fix-config"; \
+		echo "  Check $$CONFIG_FILE"; \
 		exit 1; \
 	fi
 
@@ -66,53 +94,51 @@ setup-1password: ## Complete 1Password setup (requires admin)
 	@echo "$(BLUE)Setting up 1Password integration...$(NC)"
 	@./scripts/setup-1password.sh
 
-.PHONY: test-1password
-test-1password: ## Test 1Password configuration
-	@echo "$(BLUE)Testing 1Password configuration...$(NC)"
-	@if [ -f $(SERVICE_TOKEN_FILE) ]; then \
-		. $(SERVICE_TOKEN_FILE) && \
-		if op inject -i secrets/.env.1password >/dev/null 2>&1; then \
-			echo "$(GREEN)✅ 1Password configured correctly$(NC)"; \
-			echo "  Service Account token: Active"; \
-			echo "  Secrets accessible: Yes"; \
-			echo "  Touch ID required: No"; \
+.PHONY: test-environment
+test-environment: ## Test direnv environment configuration
+	@echo "$(BLUE)Testing direnv environment configuration...$(NC)"
+	@if [ -f .direnv/cache.env ]; then \
+		echo "$(GREEN)✅ Direnv cache found$(NC)"; \
+		set -a && source .direnv/cache.env && set +a; \
+		if [ -n "$${NEO4J_PASSWORD:-}" ] && [ -n "$${GRAPHITI_GROUP_ID:-}" ]; then \
+			echo "$(GREEN)✅ Critical variables loaded$(NC)"; \
+			echo "  NEO4J_PASSWORD: [SET]"; \
+			echo "  GRAPHITI_GROUP_ID: $${GRAPHITI_GROUP_ID}"; \
 		else \
-			echo "$(RED)❌ 1Password secrets not accessible$(NC)"; \
-			echo "  Check Service Account token"; \
+			echo "$(RED)❌ Missing critical variables$(NC)"; \
+			echo "  Run: rm -rf .direnv/cache.env && direnv reload"; \
 			exit 1; \
 		fi; \
 	else \
-		echo "$(YELLOW)⚠️  Service Account token not found$(NC)"; \
-		echo "  Location: $(SERVICE_TOKEN_FILE)"; \
-		echo "  Run: make setup-1password"; \
+		echo "$(YELLOW)⚠️  Direnv cache not found$(NC)"; \
+		echo "  Run: direnv allow && direnv reload"; \
 		exit 1; \
 	fi
 
 .PHONY: show-secrets
 show-secrets: ## Show secret references (not actual secrets)
 	@echo "$(BLUE)Secret references in use:$(NC)"
-	@cat secrets/.env.1password | grep "^[A-Z]" | sed 's/=op:\/\/.*/=<1Password Reference>/'
+	@if [ -f .direnv/cache.env ]; then \
+		grep "^[A-Z]" .direnv/cache.env | sed 's/=.*/=<REDACTED>/' | head -20; \
+		echo "  ... and more"; \
+	else \
+		echo "  No cache found. Run: direnv reload"; \
+	fi
 
 # === Docker Service Management ===
 
 .PHONY: build
-build: ## Build Docker image with 1Password secrets
-	@echo "$(BLUE)Building Docker image with 1Password context...$(NC)"
-	@if [ -f $(SERVICE_TOKEN_FILE) ]; then \
-		source $(SERVICE_TOKEN_FILE) && \
-		op run --env-file=secrets/.env.1password -- docker compose build --no-cache; \
-	else \
-		echo "$(YELLOW)⚠️  Building without 1Password (secrets not available during build)$(NC)"; \
-		docker compose build --no-cache; \
-	fi
+build: ## Build Docker image with direnv environment
+	@echo "$(BLUE)Building Docker image with direnv environment...$(NC)"
+	@./scripts/docker-with-direnv.sh build --no-cache
 	@# Tag the image with the expected name for the wrapper script
 	@docker tag graphiti-claude-code-mcp-graphiti-mcp:latest $(DOCKER_IMAGE) 2>/dev/null || true
 	@echo "$(GREEN)✅ Image built: $(DOCKER_IMAGE)$(NC)"
 
 .PHONY: up
-up: verify-config ## Start with 1Password secrets
-	@echo "$(BLUE)Starting with 1Password secrets...$(NC)"
-	@./scripts/start-with-1password.sh
+up: verify-config ## Start with direnv environment
+	@echo "$(BLUE)Starting with direnv environment...$(NC)"
+	@./scripts/docker-with-direnv.sh up -d
 
 .PHONY: down
 down: ## Stop all services
@@ -247,7 +273,7 @@ test-sharing: ## Test knowledge sharing setup
 		asyncio.run(test())" 2>/dev/null || echo "$(YELLOW)Container not running$(NC)"
 
 .PHONY: test-all
-test-all: test-1password test-connection test-sharing ## Run all tests
+test-all: test-environment test-connection test-sharing ## Run all tests
 
 # === Cleanup ===
 
@@ -301,7 +327,7 @@ version: ## Show versions
 # === Claude Code Integration ===
 
 .PHONY: claude-setup
-claude-setup: build verify-config test-1password ## Complete setup for Claude Code
+claude-setup: build verify-config test-environment ## Complete setup for Claude Code
 	@echo "$(BLUE)Setting up for Claude Code...$(NC)"
 	@./scripts/verify-mcp-ready.sh
 	@echo ""
@@ -325,7 +351,7 @@ python: ## Open Python REPL in container
 	@docker exec -it graphiti-claude-code-mcp python
 
 .PHONY: rebuild
-rebuild: down build up ## Rebuild and restart with 1Password
+rebuild: down build up ## Rebuild and restart with direnv
 
 # === SSL & Langfuse Diagnostics ===
 

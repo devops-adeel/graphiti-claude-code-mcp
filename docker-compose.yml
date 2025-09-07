@@ -7,64 +7,53 @@ services:
     container_name: graphiti-claude-code-mcp
     environment:
       # 1Password Service Account Token (CRITICAL: must be passed to container)
-      # This is needed by the SDK inside the container, not just for op run
+      # This is needed by the SDK inside the container for runtime secret access
       - OP_SERVICE_ACCOUNT_TOKEN=${OP_SERVICE_ACCOUNT_TOKEN}
 
-      # CRITICAL: Must match GTD Coach for bi-directional knowledge sharing
-      - GRAPHITI_GROUP_ID=${GRAPHITI_GROUP_ID:-shared_knowledge}
-      # Neo4j configuration
-      - NEO4J_URI=${NEO4J_URI:-bolt://neo4j.graphiti.local:7687}
-      - NEO4J_USER=${NEO4J_USER:-neo4j}
-      - NEO4J_DATABASE=${NEO4J_DATABASE:-neo4j}  # Must be "neo4j" for Community Edition
-      # Password retrieved from 1Password at runtime
+      # Core configuration from direnv/1Password
+      - GRAPHITI_GROUP_ID=${GRAPHITI_GROUP_ID}
+      - NEO4J_URI=${NEO4J_URI}
+      - NEO4J_USER=${NEO4J_USER}
+      - NEO4J_DATABASE=${NEO4J_DATABASE}
       - NEO4J_PASSWORD=${NEO4J_PASSWORD}
 
-      # Non-secret configuration values
-      - OPENAI_MODEL=${OPENAI_MODEL:-gpt-4o-mini}
-      - OPENAI_EMBEDDING_MODEL=${OPENAI_EMBEDDING_MODEL:-text-embedding-3-small}
-      # Ollama configuration (default to using Ollama)
-      - USE_OLLAMA=${USE_OLLAMA:-true}
-      - OLLAMA_HOST=${OLLAMA_HOST:-http://host.docker.internal:11434}
-      - OLLAMA_MODEL=${OLLAMA_MODEL:-llama3.2:3b}
-      - OLLAMA_EMBEDDING_MODEL=${OLLAMA_EMBEDDING_MODEL:-mxbai-embed-large}
+      # Model configuration from direnv/1Password
+      - OPENAI_MODEL=${OPENAI_MODEL}
+      - OPENAI_EMBEDDING_MODEL=${OPENAI_EMBEDDING_MODEL}
+      - USE_OLLAMA=${USE_OLLAMA}
+      - OLLAMA_HOST=${OLLAMA_HOST}
+      - OLLAMA_MODEL=${OLLAMA_MODEL}
+      - OLLAMA_EMBEDDING_MODEL=${OLLAMA_EMBEDDING_MODEL}
+      - OLLAMA_EMBEDDING_DIM=${OLLAMA_EMBEDDING_DIM}
+      - OPENAI_API_KEY=${OPENAI_API_KEY}
 
-      # OpenAI API Key (optional, only needed if USE_OLLAMA=false)
-      - OPENAI_API_KEY=${OPENAI_API_KEY:-not-needed-for-ollama}
+      # Runtime configuration from direnv/1Password
+      - GRAPHITI_FALLBACK_MODE=${GRAPHITI_FALLBACK_MODE}
+      - GRAPHITI_BATCH_SIZE=${GRAPHITI_BATCH_SIZE}
+      - MEMORY_DECAY_FACTOR=${MEMORY_DECAY_FACTOR}
+      - MEMORY_INCLUDE_HISTORICAL=${MEMORY_INCLUDE_HISTORICAL}
+      - ENABLE_GTD_INTEGRATION=${ENABLE_GTD_INTEGRATION}
+      - ENABLE_CROSS_REFERENCES=${ENABLE_CROSS_REFERENCES}
 
-      # Fallback mode for when 1Password is unavailable
-      - GRAPHITI_FALLBACK_MODE=${GRAPHITI_FALLBACK_MODE:-false}
-
-      # Memory Configuration
-      - GRAPHITI_BATCH_SIZE=${GRAPHITI_BATCH_SIZE:-5}
-      - MEMORY_DECAY_FACTOR=${MEMORY_DECAY_FACTOR:-0.95}
-      - MEMORY_INCLUDE_HISTORICAL=${MEMORY_INCLUDE_HISTORICAL:-false}
-      - ENABLE_GTD_INTEGRATION=${ENABLE_GTD_INTEGRATION:-true}
-      - ENABLE_CROSS_REFERENCES=${ENABLE_CROSS_REFERENCES:-true}
-
-      # MCP Server Configuration
+      # MCP and Langfuse configuration from direnv/1Password
       - MCP_SERVER_NAME=graphiti-claude-code-mcp
-      - LOG_LEVEL=${LOG_LEVEL:-INFO}
-
-      # Langfuse Configuration (Non-secret values)
-      - LANGFUSE_HOST=${LANGFUSE_HOST:-http://langfuse.local}
-      - LANGFUSE_TRACING_ENABLED=${LANGFUSE_TRACING_ENABLED:-false}
-      # Langfuse Secrets (injected by op run)
+      - LOG_LEVEL=${LOG_LEVEL}
+      - LANGFUSE_HOST=${LANGFUSE_HOST}
+      - LANGFUSE_TRACING_ENABLED=${LANGFUSE_TRACING_ENABLED}
       - LANGFUSE_PUBLIC_KEY=${LANGFUSE_PUBLIC_KEY}
       - LANGFUSE_SECRET_KEY=${LANGFUSE_SECRET_KEY}
 
-      # OpenTelemetry Configuration
-      - OTEL_EXPORTER_OTLP_ENDPOINT=${OTEL_EXPORTER_OTLP_ENDPOINT:-http://alloy.local:4317}
-      - OTEL_SERVICE_NAME=${OTEL_SERVICE_NAME:-graphiti.mcp}
-      - OTEL_TRACES_EXPORTER=${OTEL_TRACES_EXPORTER:-otlp}
-      - OTEL_METRICS_EXPORTER=${OTEL_METRICS_EXPORTER:-otlp}
-      - OTEL_INSTRUMENTATION_ENABLED=${OTEL_INSTRUMENTATION_ENABLED:-true}
-
-      # Adaptive Sampling Configuration
-      - INFRASTRUCTURE_BASE_SAMPLE_RATE=${INFRASTRUCTURE_BASE_SAMPLE_RATE:-0.1}
-      - INFRASTRUCTURE_MAX_SAMPLE_RATE=${INFRASTRUCTURE_MAX_SAMPLE_RATE:-1.0}
-      - MEMORY_PRESSURE_THRESHOLD=${MEMORY_PRESSURE_THRESHOLD:-70}
-      - LATENCY_THRESHOLD_SECONDS=${LATENCY_THRESHOLD_SECONDS:-5.0}
-      - CASCADE_WINDOW_SECONDS=${CASCADE_WINDOW_SECONDS:-60}
+      # OpenTelemetry and Sampling from direnv/1Password
+      - OTEL_EXPORTER_OTLP_ENDPOINT=${OTEL_EXPORTER_OTLP_ENDPOINT}
+      - OTEL_SERVICE_NAME=${OTEL_SERVICE_NAME}
+      - OTEL_TRACES_EXPORTER=${OTEL_TRACES_EXPORTER}
+      - OTEL_METRICS_EXPORTER=${OTEL_METRICS_EXPORTER}
+      - OTEL_INSTRUMENTATION_ENABLED=${OTEL_INSTRUMENTATION_ENABLED}
+      - INFRASTRUCTURE_BASE_SAMPLE_RATE=${INFRASTRUCTURE_BASE_SAMPLE_RATE}
+      - INFRASTRUCTURE_MAX_SAMPLE_RATE=${INFRASTRUCTURE_MAX_SAMPLE_RATE}
+      - MEMORY_PRESSURE_THRESHOLD=${MEMORY_PRESSURE_THRESHOLD}
+      - LATENCY_THRESHOLD_SECONDS=${LATENCY_THRESHOLD_SECONDS}
+      - CASCADE_WINDOW_SECONDS=${CASCADE_WINDOW_SECONDS}
 
       # SSL Configuration for OrbStack
       - SSL_CERT_FILE=/usr/local/share/ca-certificates/orbstack-root.crt

@@ -88,11 +88,15 @@ async def get_langfuse_client():
             )
 
             # If OrbStack cert is found, still use it for main API calls
+            # Save original SSL environment values to restore later
+            original_requests_ca = os.environ.get("REQUESTS_CA_BUNDLE")
+            original_ssl_cert = os.environ.get("SSL_CERT_FILE")
+
             if ssl_info.get("is_orbstack") and ssl_info.get("cert_path"):
                 logger.info(
                     f"Using OrbStack certificate for main API: {ssl_info['cert_path']}"
                 )
-                # Set environment variable that requests library will use for main API
+                # Temporarily set environment variables for Langfuse initialization
                 os.environ["REQUESTS_CA_BUNDLE"] = ssl_info["cert_path"]
                 os.environ["SSL_CERT_FILE"] = ssl_info["cert_path"]
             else:
@@ -122,6 +126,22 @@ async def get_langfuse_client():
                 host=langfuse_host,  # Use dynamic host from env
             )
             _langfuse_initialized = True
+
+            # Restore original SSL environment values to prevent pollution
+            # This prevents SSL settings from affecting other components like Ollama
+            if original_requests_ca is not None:
+                os.environ["REQUESTS_CA_BUNDLE"] = original_requests_ca
+            else:
+                os.environ.pop("REQUESTS_CA_BUNDLE", None)
+
+            if original_ssl_cert is not None:
+                os.environ["SSL_CERT_FILE"] = original_ssl_cert
+            else:
+                os.environ.pop("SSL_CERT_FILE", None)
+
+            logger.debug(
+                "Restored original SSL environment after Langfuse initialization"
+            )
 
         # Get the singleton client instance (v3 pattern)
         _langfuse_client = get_client()

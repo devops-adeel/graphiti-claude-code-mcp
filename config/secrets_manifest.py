@@ -9,11 +9,11 @@ in 1Password - configuration values remain in .env.graphiti
 # 1Password Secret References
 # These are actual secrets that should never be hardcoded
 SECRET_REFS = {
-    "NEO4J_PASSWORD": "op://HomeLab/fyc6yqttq2iwv7osdoe6odww3i/password",
-    "OPENAI_API_KEY": "op://HomeLab/zl4gkplqyb2dwixdmtgwwjipda/credential",
-    "LANGFUSE_PUBLIC_KEY": "op://HomeLab/ctyxybforywkjp2krbdpeulzzq/langfuse-public-key",
-    "LANGFUSE_SECRET_KEY": "op://HomeLab/ctyxybforywkjp2krbdpeulzzq/langfuse-secret-key",
-    "LANGFUSE_HOST": "op://HomeLab/ctyxybforywkjp2krbdpeulzzq/langfuse-host",
+    "NEO4J_PASSWORD": "op://Developer/Neo4j/password",
+    "OPENAI_API_KEY": "op://Developer/OpenAI/credential",
+    "LANGFUSE_PUBLIC_KEY": "op://Developer/Langfuse/langfuse-public-key",
+    "LANGFUSE_SECRET_KEY": "op://Developer/Langfuse/langfuse-secret-key",
+    "LANGFUSE_HOST": "op://Developer/Langfuse/langfuse-host",
 }
 
 # Non-secret configuration values

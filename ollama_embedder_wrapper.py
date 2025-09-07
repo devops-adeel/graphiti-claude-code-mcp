@@ -35,10 +35,23 @@ class OllamaEmbedder(EmbedderClient):
         if host.endswith("/v1"):
             host = host[:-3]
 
-        self.client = AsyncClient(host=host)
+        # Set NO_PROXY to ensure localhost connections bypass any proxy
+        import os
+
+        current_no_proxy = os.environ.get("NO_PROXY", "")
+        if current_no_proxy:
+            os.environ["NO_PROXY"] = f"{current_no_proxy},localhost,127.0.0.1,::1"
+        else:
+            os.environ["NO_PROXY"] = "localhost,127.0.0.1,::1"
+
+        # Create client with trust_env=False to avoid SSL/proxy environment interference
+        # This prevents httpx from using environment variables that might force SSL on HTTP connections
+        self.client = AsyncClient(host=host, trust_env=False)
         self.model = model
         self.embedding_dim = embedding_dim
-        logger.info(f"Initialized OllamaEmbedder with model: {model} at {host}")
+        logger.info(
+            f"Initialized OllamaEmbedder with model: {model} at {host} (trust_env=False)"
+        )
 
     async def create(
         self,
