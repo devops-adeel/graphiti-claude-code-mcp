@@ -4,6 +4,12 @@ All notable changes to Graphiti Claude Code MCP will be documented in this file.
 
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
+## [5.0.1](https://github.com/adeel/graphiti-claude-code-mcp/compare/v5.0.0..v5.0.1) - 2025-09-07
+
+
+### 🐛 Bug Fixes
+
+- Resolve Ollama SSL/TLS connection issues
 ## [5.0.0](https://github.com/adeel/graphiti-claude-code-mcp/compare/v4.0.0..v5.0.0) - 2025-09-07
 
 
@@ -14,7 +20,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### 🚜 Refactor
 
 - [**breaking**] Remove os.getenv defaults to enforce explicit configuration
-## [Unreleased]
+## [4.0.0](https://github.com/adeel/graphiti-claude-code-mcp/compare/v3.4.1..v4.0.0) - 2025-09-05
 
 
 ### 🚀 Features
