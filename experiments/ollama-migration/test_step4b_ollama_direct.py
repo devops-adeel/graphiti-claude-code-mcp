@@ -17,7 +17,7 @@ async def test_ollama_embedding():
 
     url = "http://localhost:11434/v1/embeddings"
     headers = {"Content-Type": "application/json"}
-    data = {"model": "nomic-embed-text", "input": "Test embedding generation"}
+    data = {"model": "mxbai-embed-large", "input": "Test embedding generation"}
 
     async with httpx.AsyncClient(verify=False) as client:
         try:
@@ -47,7 +47,7 @@ async def test_ollama_embedding():
         )
 
         response = await client.embeddings.create(
-            model="nomic-embed-text", input="Test embedding with OpenAI client"
+            model="mxbai-embed-large", input="Test embedding with OpenAI client"
         )
 
         embedding = response.data[0].embedding

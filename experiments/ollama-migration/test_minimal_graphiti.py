@@ -59,10 +59,10 @@ async def test_minimal_graphiti():
             print(f"   ❌ Failed to get password: {result.stderr}")
             return
 
-    neo4j_uri = f"bolt://{os.getenv('NEO4J_HOST', 'localhost')}:{os.getenv('NEO4J_PORT', '7687')}"
+    neo4j_uri = f"bolt://{os.getenv('NEO4J_HOST')}:{os.getenv('NEO4J_PORT')}"
     driver = AsyncGraphDatabase.driver(neo4j_uri, auth=("neo4j", neo4j_password))
 
-    async with driver.session(database=os.getenv("NEO4J_DATABASE", "neo4j")) as session:
+    async with driver.session(database=os.getenv("NEO4J_DATABASE")) as session:
         # Check initial state
         print("\n3️⃣ Initial Neo4j state - Vector indexes:")
         result = await session.run("SHOW INDEXES WHERE type = 'VECTOR'")
@@ -92,7 +92,7 @@ async def test_minimal_graphiti():
         print("\n5️⃣ Creating Ollama LLM client...")
         llm_config = LLMConfig(
             api_key="ollama",  # Ollama doesn't need a real key
-            model=os.getenv("OLLAMA_MODEL", "llama3.2:3b"),
+            model=os.getenv("OLLAMA_MODEL"),
             base_url="http://host.docker.internal:11434/v1",
             temperature=0.1,
             max_tokens=4096,
@@ -102,9 +102,9 @@ async def test_minimal_graphiti():
 
         # Create Embedder
         print("\n6️⃣ Creating Ollama Embedder...")
-        embedding_dim = int(os.getenv("OLLAMA_EMBEDDING_DIM", "768"))
+        embedding_dim = int(os.getenv("OLLAMA_EMBEDDING_DIM"))
         embedder = OllamaEmbedder(
-            model=os.getenv("OLLAMA_EMBEDDING_MODEL", "nomic-embed-text"),
+            model=os.getenv("OLLAMA_EMBEDDING_MODEL"),
             host="http://host.docker.internal:11434",
             embedding_dim=embedding_dim,
         )
@@ -136,7 +136,7 @@ async def test_minimal_graphiti():
     # Step 9: Check Neo4j state after Graphiti initialization
     print("\n9️⃣ Neo4j state AFTER Graphiti initialization:")
 
-    async with driver.session(database=os.getenv("NEO4J_DATABASE", "neo4j")) as session:
+    async with driver.session(database=os.getenv("NEO4J_DATABASE")) as session:
         # Check all indexes
         print("\n   All indexes:")
         result = await session.run("SHOW INDEXES")

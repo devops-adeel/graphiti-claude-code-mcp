@@ -223,7 +223,7 @@ async def list_resources() -> List[Resource]:
         Resource(
             uri="memory://shared-knowledge",
             name="Shared Knowledge Graph",
-            description=f"Access to shared knowledge graph: {os.getenv('GRAPHITI_GROUP_ID', 'shared_knowledge')}",
+            description=f"Access to shared knowledge graph: {os.getenv('GRAPHITI_GROUP_ID')}",
             mimeType="application/json",
         ),
         Resource(
@@ -746,15 +746,15 @@ async def call_tool(name: str, arguments: Dict[str, Any]) -> Any:
             # Set trace-level tags and metadata
             root_span.update_trace(
                 tags=[
-                    os.getenv("MCP_TRACE_TAG", "mcp-internal"),
-                    os.getenv("MCP_ANALYZER_TAG", "mcp-analyzer"),
+                    os.getenv("MCP_TRACE_TAG"),
+                    os.getenv("MCP_ANALYZER_TAG"),
                     f"tool:{name}",
                 ],
                 metadata={
-                    "source": os.getenv("MCP_SOURCE_IDENTIFIER", "mcp-server"),
+                    "source": os.getenv("MCP_SOURCE_IDENTIFIER"),
                     "component": "tool-handler",
                     "tool": name,
-                    "version": os.getenv("MCP_COMPONENT_VERSION", "1.0.0"),
+                    "version": os.getenv("MCP_COMPONENT_VERSION"),
                     "arguments": arguments,
                 },
             )
@@ -1347,9 +1347,7 @@ async def main():
                     f"Cannot start MCP server without secrets: {fallback_e}"
                 )
 
-    logger.info(
-        f"Shared group_id: {os.getenv('GRAPHITI_GROUP_ID', 'shared_knowledge')}"
-    )
+    logger.info(f"Shared group_id: {os.getenv('GRAPHITI_GROUP_ID')}")
 
     # Initialize Langfuse client now that secrets are loaded
     try:

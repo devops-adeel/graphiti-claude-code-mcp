@@ -26,8 +26,8 @@ async def test_simple():
 
     # Print configuration
     print(f"Configured with:")
-    print(f"  - Host: {os.getenv('NEO4J_HOST', 'neo4j.graphiti.local')}")
-    print(f"  - Port: {os.getenv('NEO4J_PORT', '7687')}")
+    print(f"  - Host: {os.getenv('NEO4J_HOST')}")
+    print(f"  - Port: {os.getenv('NEO4J_PORT')}")
     print(f"  - Database: {memory.database}")
     print(f"  - Batch size: {memory.batch_size}")
 

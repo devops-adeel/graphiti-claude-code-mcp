@@ -29,8 +29,8 @@ if Path("/.dockerenv").exists():  # Running in Docker
     logger_msg = "Running in Docker with OrbStack networking"
 
     # Verify Neo4j configuration
-    neo4j_host = os.getenv("NEO4J_HOST", "neo4j.graphiti.local")
-    neo4j_port = os.getenv("NEO4J_PORT", "7687")
+    neo4j_host = os.getenv("NEO4J_HOST")
+    neo4j_port = os.getenv("NEO4J_PORT")
 
     # Log configuration for debugging
     sys.stderr.write(f"Neo4j configuration: {neo4j_host}:{neo4j_port}\n")
@@ -66,12 +66,12 @@ async def main():
             try:
                 from neo4j import GraphDatabase
 
-                uri = f"bolt://{os.getenv('NEO4J_HOST', 'neo4j.graphiti.local')}:{os.getenv('NEO4J_PORT', '7687')}"
+                uri = f"bolt://{os.getenv('NEO4J_HOST')}:{os.getenv('NEO4J_PORT')}"
                 driver = GraphDatabase.driver(
                     uri,
                     auth=(
-                        os.getenv("NEO4J_USER", "neo4j"),
-                        os.getenv("NEO4J_PASSWORD", ""),
+                        os.getenv("NEO4J_USER"),
+                        os.getenv("NEO4J_PASSWORD"),
                     ),
                 )
                 # Quick connectivity test
@@ -89,11 +89,9 @@ async def main():
 
         logger.info("Starting Graphiti MCP Server (stdio transport)")
         logger.info(logger_msg)
-        logger.info(f"Neo4j Host: {os.getenv('NEO4J_HOST', 'neo4j.graphiti.local')}")
-        logger.info(f"Neo4j Port: {os.getenv('NEO4J_PORT', '7687')}")
-        logger.info(
-            f"Group ID: {os.getenv('GRAPHITI_GROUP_ID', 'shared_gtd_knowledge')}"
-        )
+        logger.info(f"Neo4j Host: {os.getenv('NEO4J_HOST')}")
+        logger.info(f"Neo4j Port: {os.getenv('NEO4J_PORT')}")
+        logger.info(f"Group ID: {os.getenv('GRAPHITI_GROUP_ID')}")
 
         # Flush logs before starting stdio server
         sys.stderr.flush()

@@ -44,8 +44,8 @@ async def test_add_episode():
         result.stdout.strip() if result.returncode == 0 else os.getenv("NEO4J_PASSWORD")
     )
 
-    neo4j_uri = f"bolt://{os.getenv('NEO4J_HOST', 'localhost')}:{os.getenv('NEO4J_PORT', '7687')}"
-    neo4j_database = os.getenv("NEO4J_DATABASE", "neo4j")
+    neo4j_uri = f"bolt://{os.getenv('NEO4J_HOST')}:{os.getenv('NEO4J_PORT')}"
+    neo4j_database = os.getenv("NEO4J_DATABASE")
 
     # Initialize Neo4j driver for inspection
     driver = AsyncGraphDatabase.driver(neo4j_uri, auth=("neo4j", neo4j_password))
@@ -74,7 +74,7 @@ async def test_add_episode():
         # Create LLM client (use localhost when running from host)
         llm_config = LLMConfig(
             api_key="ollama",
-            model=os.getenv("OLLAMA_MODEL", "llama3.2:3b"),
+            model=os.getenv("OLLAMA_MODEL"),
             base_url="http://localhost:11434/v1",
             temperature=0.1,
             max_tokens=4096,
@@ -83,9 +83,9 @@ async def test_add_episode():
         print("   ✅ Ollama LLM client created")
 
         # Create Embedder with 768 dimensions
-        embedding_dim = int(os.getenv("OLLAMA_EMBEDDING_DIM", "768"))
+        embedding_dim = int(os.getenv("OLLAMA_EMBEDDING_DIM"))
         embedder = OllamaEmbedder(
-            model=os.getenv("OLLAMA_EMBEDDING_MODEL", "nomic-embed-text"),
+            model=os.getenv("OLLAMA_EMBEDDING_MODEL"),
             host="http://localhost:11434",
             embedding_dim=embedding_dim,
         )
@@ -121,7 +121,7 @@ async def test_add_episode():
             name="ollama_migration_test",
             episode_body="""
             Successfully migrated the Graphiti memory system from a hybrid OpenAI/Ollama
-            configuration to a pure Ollama setup. The system now uses nomic-embed-text
+            configuration to a pure Ollama setup. The system now uses mxbai-embed-large
             model with 768-dimensional embeddings instead of the previous 1536 dimensions
             from OpenAI. This migration makes the entire system self-hosted and eliminates
             vector dimension mismatch errors.
@@ -129,7 +129,7 @@ async def test_add_episode():
             source=EpisodeType.text,
             source_description="Technical migration documentation",
             reference_time=datetime.now(),
-            group_id=os.getenv("GRAPHITI_GROUP_ID", "shared_knowledge"),
+            group_id=os.getenv("GRAPHITI_GROUP_ID"),
         )
 
         print("   ✅ Episode added successfully!")

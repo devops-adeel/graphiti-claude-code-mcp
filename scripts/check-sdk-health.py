@@ -260,10 +260,10 @@ class HealthChecker:
         # Connection: bolt://neo4j.graphiti.local:7687
         # Database: "neo4j" (Community Edition requirement)
 
-        host = os.getenv("NEO4J_HOST", "not set")
-        port = os.getenv("NEO4J_PORT", "not set")
-        database = os.getenv("NEO4J_DATABASE", "not set")
-        group_id = os.getenv("GRAPHITI_GROUP_ID", "not set")
+        host = os.getenv("NEO4J_HOST")
+        port = os.getenv("NEO4J_PORT")
+        database = os.getenv("NEO4J_DATABASE")
+        group_id = os.getenv("GRAPHITI_GROUP_ID")
 
         print(f"   Host: {host}")
         print(f"   Port: {port}")

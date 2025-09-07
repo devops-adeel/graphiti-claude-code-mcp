@@ -36,14 +36,16 @@ async def test_ollama_migration():
         # Test capturing a solution
         print("\n3. Capturing test solution...")
         test_error = "Vector dimension mismatch: Expected 1536, got 768"
-        test_solution = "Migrated to pure Ollama with nomic-embed-text (768 dimensions)"
+        test_solution = (
+            "Migrated to pure Ollama with mxbai-embed-large (768 dimensions)"
+        )
 
         await capture.capture_solution(
             error=test_error,
             solution=test_solution,
             context={
                 "migration_type": "ollama-only",
-                "embedding_model": "nomic-embed-text",
+                "embedding_model": "mxbai-embed-large",
                 "dimensions": 768,
                 "timestamp": "2025-09-04",
             },

@@ -36,7 +36,7 @@ async def add_episode_and_check():
         embedder=OpenAIEmbedder(
             config=OpenAIEmbedderConfig(
                 api_key="abc",
-                embedding_model="nomic-embed-text",
+                embedding_model="mxbai-embed-large",
                 embedding_dim=768,
                 base_url="http://localhost:11434/v1",
             )

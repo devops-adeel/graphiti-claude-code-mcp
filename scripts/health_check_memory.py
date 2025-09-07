@@ -138,10 +138,10 @@ class HealthCheck:
         if self.verbose:
             self.log("", "debug")
             self.log("Current configuration:", "debug")
-            uri = os.getenv("NEO4J_URI", "not set")
-            user = os.getenv("NEO4J_USER", "not set")
-            db = os.getenv("NEO4J_DATABASE", "not set")
-            group = os.getenv("GRAPHITI_GROUP_ID", "not set")
+            uri = os.getenv("NEO4J_URI")
+            user = os.getenv("NEO4J_USER")
+            db = os.getenv("NEO4J_DATABASE")
+            group = os.getenv("GRAPHITI_GROUP_ID")
             print(f"  Neo4j: {uri} (user: {user}, db: {db})")
             print(f"  Group ID: {group}")
             print(
@@ -161,8 +161,8 @@ class HealthCheck:
         try:
             if self.verbose:
                 self.log("Testing Neo4j connection...", "debug")
-                uri = os.getenv("NEO4J_URI", "bolt://localhost:7687")
-                user = os.getenv("NEO4J_USER", "neo4j")
+                uri = os.getenv("NEO4J_URI")
+                user = os.getenv("NEO4J_USER")
                 self.log(f"Connecting to {uri} as {user}", "query")
 
             # Import here to avoid early failures
@@ -320,9 +320,7 @@ class HealthCheck:
 
             if self.fix:
                 self.log("Direct Neo4j query to check:", "warning")
-                print(
-                    f"  cypher-shell -a {os.getenv('NEO4J_URI', 'bolt://localhost:7687')}"
-                )
+                print(f"  cypher-shell -a {os.getenv('NEO4J_URI')}")
                 print(f"  MATCH (n) RETURN n LIMIT 5")
 
         self.results.append(("Storage", storage_ok))
@@ -433,7 +431,7 @@ class HealthCheck:
         temporal_ok = True
 
         try:
-            decay_factor = float(os.getenv("MEMORY_DECAY_FACTOR", "0.95"))
+            decay_factor = float(os.getenv("MEMORY_DECAY_FACTOR"))
 
             if self.verbose:
                 self.log(f"Decay factor: {decay_factor}", "debug")
@@ -477,10 +475,8 @@ class HealthCheck:
                 self.log("Testing GTD integration...", "debug")
 
             # Check if GTD integration is enabled
-            gtd_enabled = os.getenv("ENABLE_GTD_INTEGRATION", "true").lower() == "true"
-            cross_ref_enabled = (
-                os.getenv("ENABLE_CROSS_REFERENCES", "true").lower() == "true"
-            )
+            gtd_enabled = os.getenv("ENABLE_GTD_INTEGRATION").lower() == "true"
+            cross_ref_enabled = os.getenv("ENABLE_CROSS_REFERENCES").lower() == "true"
 
             self.log(
                 f"GTD Integration: {'enabled' if gtd_enabled else 'disabled'}",

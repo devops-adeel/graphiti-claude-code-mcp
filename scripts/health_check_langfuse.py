@@ -127,7 +127,7 @@ class LangfuseHealthCheck:
         """Validate SSL certificate for Langfuse host."""
         self.print_header("SSL Certificate Validation")
 
-        host = os.getenv("LANGFUSE_HOST", "http://langfuse.local")
+        host = os.getenv("LANGFUSE_HOST")
 
         # Remove path if present
         if host.startswith(("http://", "http://")):
@@ -154,7 +154,7 @@ class LangfuseHealthCheck:
 
         public_key = os.getenv("LANGFUSE_PUBLIC_KEY")
         secret_key = os.getenv("LANGFUSE_SECRET_KEY")
-        host = os.getenv("LANGFUSE_HOST", "http://langfuse.local")
+        host = os.getenv("LANGFUSE_HOST")
 
         if not public_key or not secret_key:
             self.print_result("API Connection", False, "Missing credentials")

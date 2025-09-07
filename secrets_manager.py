@@ -199,7 +199,10 @@ class SecretsManager:
 
         if not token:
             # Check if we should use fallback mode
-            if os.getenv("GRAPHITI_FALLBACK_MODE", "").lower() == "true":
+            if (
+                os.getenv("GRAPHITI_FALLBACK_MODE")
+                and os.getenv("GRAPHITI_FALLBACK_MODE").lower() == "true"
+            ):
                 logger.warning(
                     "No 1Password token found, using fallback mode with .env.graphiti"
                 )

@@ -41,7 +41,7 @@ async def init_graphiti():
         print("\n2. Configuring embedder...")
         embedder_config = OpenAIEmbedderConfig(
             api_key="abc",
-            embedding_model="nomic-embed-text",
+            embedding_model="mxbai-embed-large",
             embedding_dim=768,  # Critical: specify dimensions
             base_url="http://localhost:11434/v1",
         )

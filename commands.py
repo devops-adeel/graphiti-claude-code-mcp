@@ -59,7 +59,7 @@ model: gpt-4.1-mini
 
 Create a test-first implementation for: $ARGUMENTS
 
-## Memory Context (from {os.getenv('GRAPHITI_GROUP_ID', 'shared_knowledge')})
+## Memory Context (from {os.getenv('GRAPHITI_GROUP_ID')})
 
 ### Best TDD Patterns Found:
 {self._format_patterns(patterns[:3])}
@@ -393,7 +393,7 @@ model: gpt-4.1-mini
 
 # Search Shared Knowledge: $ARGUMENTS
 
-Searching in group: {os.getenv('GRAPHITI_GROUP_ID', 'shared_knowledge')}
+Searching in group: {os.getenv('GRAPHITI_GROUP_ID')}
 
 ## Search Categories:
 
@@ -563,7 +563,7 @@ All commands access the shared knowledge graph: `{}`
 - Cross-domain insights (GTD ↔ Coding connections)
 - Never deletes history (only marks as superseded)
 """.format(
-            os.getenv("GRAPHITI_GROUP_ID", "shared_knowledge")
+            os.getenv("GRAPHITI_GROUP_ID")
         )
 
         index_path = self.commands_dir / "README.md"

@@ -75,9 +75,7 @@ def test_langfuse_scoring():
 
         print("\n🎉 SUCCESS: All Langfuse scoring tests passed!")
         print("📊 Data has been sent to Langfuse for observability")
-        print(
-            f"🔍 Check your Langfuse dashboard at: {os.getenv('LANGFUSE_HOST', 'http://langfuse.local')}"
-        )
+        print(f"🔍 Check your Langfuse dashboard at: {os.getenv('LANGFUSE_HOST')}")
 
         return True
 

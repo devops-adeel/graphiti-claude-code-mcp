@@ -61,7 +61,7 @@ class LangfuseAnalyzer:
         """Initialize Langfuse analyzer with API credentials and SSL configuration"""
         self.public_key = os.getenv("LANGFUSE_PUBLIC_KEY")
         self.secret_key = os.getenv("LANGFUSE_SECRET_KEY")
-        self.host = os.getenv("LANGFUSE_HOST", "http://langfuse.local")
+        self.host = os.getenv("LANGFUSE_HOST")
 
         if not self.public_key or not self.secret_key:
             logger.warning("Langfuse API keys not configured")
@@ -87,13 +87,13 @@ class LangfuseAnalyzer:
             # Tag all traces from this client as MCP-internal to prevent analysis loops
             # This ensures we can monitor the MCP server while preventing it from analyzing itself
             self.mcp_tags = [
-                os.getenv("MCP_TRACE_TAG", "mcp-internal"),
-                os.getenv("MCP_ANALYZER_TAG", "mcp-analyzer"),
+                os.getenv("MCP_TRACE_TAG"),
+                os.getenv("MCP_ANALYZER_TAG"),
             ]
             self.mcp_metadata = {
-                "source": os.getenv("MCP_SOURCE_IDENTIFIER", "mcp-server"),
+                "source": os.getenv("MCP_SOURCE_IDENTIFIER"),
                 "component": "langfuse-analyzer",
-                "version": os.getenv("MCP_COMPONENT_VERSION", "1.0.0"),
+                "version": os.getenv("MCP_COMPONENT_VERSION"),
             }
 
         self.pattern_detector = PatternDetector()

@@ -64,13 +64,13 @@ class AdaptiveInfrastructureSampler:
     def __init__(self):
         """Initialize the adaptive sampler with configuration."""
         # Base sampling configuration
-        self.base_rate = float(os.getenv("INFRASTRUCTURE_BASE_SAMPLE_RATE", "0.1"))
-        self.max_rate = float(os.getenv("INFRASTRUCTURE_MAX_SAMPLE_RATE", "1.0"))
+        self.base_rate = float(os.getenv("INFRASTRUCTURE_BASE_SAMPLE_RATE"))
+        self.max_rate = float(os.getenv("INFRASTRUCTURE_MAX_SAMPLE_RATE"))
 
         # Thresholds
-        self.memory_threshold = float(os.getenv("MEMORY_PRESSURE_THRESHOLD", "70"))
-        self.latency_threshold = float(os.getenv("LATENCY_THRESHOLD_SECONDS", "5.0"))
-        self.cascade_window_seconds = int(os.getenv("CASCADE_WINDOW_SECONDS", "60"))
+        self.memory_threshold = float(os.getenv("MEMORY_PRESSURE_THRESHOLD"))
+        self.latency_threshold = float(os.getenv("LATENCY_THRESHOLD_SECONDS"))
+        self.cascade_window_seconds = int(os.getenv("CASCADE_WINDOW_SECONDS"))
 
         # Adaptive rate management
         self.current_rate = self.base_rate

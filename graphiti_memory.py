@@ -122,20 +122,18 @@ class SharedMemory:
         self._load_config()
 
         # CRITICAL: Use same group_id as GTD Coach for shared knowledge
-        self.group_id = os.getenv("GRAPHITI_GROUP_ID", "shared_knowledge")
+        self.group_id = os.getenv("GRAPHITI_GROUP_ID")
         self.database = "neo4j"  # Neo4j Community Edition default database
 
         # Memory configuration
-        self.decay_factor = float(os.getenv("MEMORY_DECAY_FACTOR", "0.95"))
+        self.decay_factor = float(os.getenv("MEMORY_DECAY_FACTOR"))
         self.include_historical = (
-            os.getenv("MEMORY_INCLUDE_HISTORICAL", "false").lower() == "true"
+            os.getenv("MEMORY_INCLUDE_HISTORICAL").lower() == "true"
         )
 
         # Cross-domain features
-        self.enable_gtd = os.getenv("ENABLE_GTD_INTEGRATION", "true").lower() == "true"
-        self.enable_cross_ref = (
-            os.getenv("ENABLE_CROSS_REFERENCES", "true").lower() == "true"
-        )
+        self.enable_gtd = os.getenv("ENABLE_GTD_INTEGRATION").lower() == "true"
+        self.enable_cross_ref = os.getenv("ENABLE_CROSS_REFERENCES").lower() == "true"
 
         self.client = None
         self.user_node_uuid = None
@@ -145,12 +143,12 @@ class SharedMemory:
         # Token management for OpenAI API
         self.encoder = None
         self.max_tokens = 7000  # Leave buffer for response with 8192 limit
-        self.model_name = os.getenv("OPENAI_MODEL", "gpt-4o-mini")
+        self.model_name = os.getenv("OPENAI_MODEL")
         self._init_tiktoken()
 
         # Batch processing configuration
         self.episode_buffer = []
-        self.batch_size = int(os.getenv("GRAPHITI_BATCH_SIZE", "50"))
+        self.batch_size = int(os.getenv("GRAPHITI_BATCH_SIZE"))
         self.flush_lock = asyncio.Lock()
 
         logger.info(
@@ -453,8 +451,8 @@ class SharedMemory:
             # Ollama configuration only
             llm_config = LLMConfig(
                 api_key="ollama",  # Ollama doesn't need a real key
-                model=os.getenv("OLLAMA_MODEL", "llama3.2:3b"),
-                small_model=os.getenv("OLLAMA_MODEL", "llama3.2:3b"),
+                model=os.getenv("OLLAMA_MODEL"),
+                small_model=os.getenv("OLLAMA_MODEL"),
                 base_url="http://host.docker.internal:11434/v1",
                 temperature=0.1,
                 max_tokens=4096,
@@ -465,10 +463,10 @@ class SharedMemory:
 
             # Use native Ollama embedder with configurable dimensions
             self.embedder = OllamaEmbedder(
-                model=os.getenv("OLLAMA_EMBEDDING_MODEL", "nomic-embed-text"),
+                model=os.getenv("OLLAMA_EMBEDDING_MODEL"),
                 host="http://host.docker.internal:11434",
                 embedding_dim=int(
-                    os.getenv("OLLAMA_EMBEDDING_DIM", "768")
+                    os.getenv("OLLAMA_EMBEDDING_DIM")
                 ),  # Configurable dimension
             )
 
@@ -513,13 +511,13 @@ class SharedMemory:
 
             # Use Ollama for both LLM and embeddings
             # Detect if running in Docker or on host
-            ollama_host = os.getenv("OLLAMA_HOST", "http://localhost:11434")
+            ollama_host = os.getenv("OLLAMA_HOST")
             if not ollama_host.endswith("/v1"):
                 ollama_host = f"{ollama_host}/v1"
 
             llm_config = LLMConfig(
                 api_key="ollama",  # Ollama doesn't need a real key
-                model=os.getenv("OLLAMA_MODEL", "llama3.2:3b"),
+                model=os.getenv("OLLAMA_MODEL"),
                 base_url=ollama_host,
                 temperature=0.1,
                 max_tokens=4096,
@@ -530,10 +528,10 @@ class SharedMemory:
 
             # Use native Ollama embedder with configurable dimensions
             embedder = OllamaEmbedder(
-                model=os.getenv("OLLAMA_EMBEDDING_MODEL", "nomic-embed-text"),
+                model=os.getenv("OLLAMA_EMBEDDING_MODEL"),
                 host=ollama_host,
                 embedding_dim=int(
-                    os.getenv("OLLAMA_EMBEDDING_DIM", "768")
+                    os.getenv("OLLAMA_EMBEDDING_DIM")
                 ),  # Configurable dimension
             )
 
@@ -547,8 +545,8 @@ class SharedMemory:
             # Note: graphiti-core now accepts credentials directly, not via driver
             # Group_id is set on RawEpisode objects, not on Graphiti client
             self.client = Graphiti(
-                uri=os.getenv("NEO4J_URI", "bolt://neo4j.graphiti.local:7687"),
-                user=os.getenv("NEO4J_USER", "neo4j"),
+                uri=os.getenv("NEO4J_URI"),
+                user=os.getenv("NEO4J_USER"),
                 password=neo4j_password,
                 llm_client=llm_client,
                 embedder=embedder,

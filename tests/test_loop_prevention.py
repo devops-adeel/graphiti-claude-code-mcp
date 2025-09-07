@@ -140,7 +140,7 @@ async def test_loop_prevention():
         x_langfuse_public_key=os.getenv("LANGFUSE_PUBLIC_KEY"),
         username=os.getenv("LANGFUSE_PUBLIC_KEY"),
         password=os.getenv("LANGFUSE_SECRET_KEY"),
-        base_url=os.getenv("LANGFUSE_HOST", "http://langfuse.local"),
+        base_url=os.getenv("LANGFUSE_HOST"),
     )
 
     from_timestamp = datetime.now() - timedelta(minutes=1)

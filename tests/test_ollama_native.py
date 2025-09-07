@@ -15,7 +15,7 @@ from typing import List
 os.environ["USE_OLLAMA"] = "true"
 os.environ["OLLAMA_HOST"] = "http://localhost:11434"
 os.environ["OLLAMA_MODEL"] = "llama3.2:3b"
-os.environ["OLLAMA_EMBEDDING_MODEL"] = "nomic-embed-text"
+os.environ["OLLAMA_EMBEDDING_MODEL"] = "mxbai-embed-large"
 os.environ["GRAPHITI_GROUP_ID"] = "shared_knowledge"
 
 
@@ -191,7 +191,7 @@ async def test_embedder():
         from ollama_embedder_wrapper import OllamaEmbedder
 
         embedder = OllamaEmbedder(
-            model="nomic-embed-text", host="http://localhost:11434"
+            model="mxbai-embed-large", host="http://localhost:11434"
         )
 
         # Test both parameter names

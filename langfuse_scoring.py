@@ -50,7 +50,7 @@ class LangfuseScoringSystem:
         # Get credentials from environment (injected by 1Password CLI)
         public_key = os.getenv("LANGFUSE_PUBLIC_KEY")
         secret_key = os.getenv("LANGFUSE_SECRET_KEY")
-        host = os.getenv("LANGFUSE_HOST", "http://langfuse.local")
+        host = os.getenv("LANGFUSE_HOST")
 
         # Langfuse is MANDATORY - fail fast if credentials missing
         if not public_key or not secret_key:

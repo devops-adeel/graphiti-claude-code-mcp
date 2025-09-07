@@ -19,15 +19,15 @@ class OllamaEmbedder(EmbedderClient):
 
     def __init__(
         self,
-        model: str = "nomic-embed-text",
+        model: str = "mxbai-embed-large",
         host: str = "http://localhost:11434",
-        embedding_dim: int = 768,  # nomic-embed-text dimension
+        embedding_dim: int = 1024,  # mxbai-embed-large dimension
     ):
         """
         Initialize the Ollama embedder.
 
         Args:
-            model: The embedding model to use (default: nomic-embed-text)
+            model: The embedding model to use (default: mxbai-embed-large)
             host: The Ollama host URL
             embedding_dim: The dimension of embeddings (for compatibility)
         """

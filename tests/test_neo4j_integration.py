@@ -41,9 +41,7 @@ async def test_neo4j_connection():
         from neo4j import GraphDatabase
 
         uri = f"bolt://{os.getenv('NEO4J_HOST')}:{os.getenv('NEO4J_PORT')}"
-        driver = GraphDatabase.driver(
-            uri, auth=("neo4j", os.getenv("NEO4J_PASSWORD", ""))
-        )
+        driver = GraphDatabase.driver(uri, auth=("neo4j", os.getenv("NEO4J_PASSWORD")))
 
         # Verify connectivity
         driver.verify_connectivity()

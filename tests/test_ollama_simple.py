@@ -136,7 +136,7 @@ async def test_embedding_generation():
         from ollama_embedder_wrapper import OllamaEmbedder
 
         embedder = OllamaEmbedder(
-            model="nomic-embed-text", host="http://localhost:11434"
+            model="mxbai-embed-large", host="http://localhost:11434"
         )
 
         test_texts = [
